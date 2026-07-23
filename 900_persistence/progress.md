@@ -7,33 +7,51 @@
 
 ## Estado actual
 
-T-009 y T-011 quedaron resueltas. T-009: `soda init` ahora siembra en una sola pasada tanto
-`_persistence/` (memoria) como `_guideline/` (doctrina), reportando cada carpeta en su
-propio bloque; el usuario decidió ampliar D-012 (enmendada en D-020) en vez de usar un
-subcomando o flag aparte. Se introdujo una distinción deliberada al reportar (D-021): la
-memoria existente siempre se salta sin comparar (`SALTADO`), pero un documento de
-`_guideline/` que existe y no coincide con el del paquete se reporta como `DIFIERE` en vez
-de esconderse bajo `SALTADO`, para que un destino con una versión vieja de `soda` no se
-quede con doctrina desactualizada en silencio; ninguna de las dos carpetas se toca sin
-`--force` (D-011 intacto). T-011: unificada la taxonomía de estado entre `principles.md` §5
-(que usaba "gatillo de adopción") y `methodology.md` §0.3 (los tres estados normativo /
-`[DIFERIDO]` / `[PENDIENTE]` de D-018); ahora `principles.md` §0.5 importa esa taxonomía por
-referencia sin redefinirla, y §5 quedó marcada `[PENDIENTE]` en tabla. Verificado con 82
-tests (`pytest`, `ruff` limpio, subida desde 57), wheel con los tres `.md` de `_guideline/`
-más los seis de `_persistence/`, y ejecución real de `soda init` en proyecto de prueba
-(siembra inicial y detección de desfase tras corromper un archivo). El `soda` global (pipx
-editable) ya trae ambos cambios. Detectada y registrada tarea nueva T-012: implementar
-`sesion-starter`, acordada como siguiente con el usuario. No hay agentes propios de `soda`
-todavía.
+Sesión de diseño puro, sin código nuevo, posterior al cierre de T-009/T-011. Se resolvió la
+pregunta de diseño que quedaba abierta sobre `agents-and-evaluation.md` §5: `agent-worker`
+no se construye (era un placeholder genérico), en su lugar el harness construye agentes
+especializados (Probador, Implementador, Refactorizador, Revisor de código, etc., D-022), y
+§5 pasa de descripción a hoja de ruta de esos agentes (D-023). Se corrigió un supuesto de
+diseño equivocado: `soda` no corre dentro de una sesión de Claude Code/Codex, es un script
+de Python en terminal, así que el orquestador es el script mismo (D-024, L-010); se decidió
+posponer un orquestador LLM porque el camino feliz de un incremento ya es mecánico contra
+`methodology.md` §3 y no necesita juicio de coordinación (D-025). Se descubrió una
+restricción técnica: `claude -p` no tiene canal con el humano, así que los gates y todo
+diálogo con el usuario viven en Python (C-007). Se diseñó la interfaz de comandos completa
+(`init`/`start`/`step`/`status`/`close`, D-026), se estableció que `state.yaml` es
+prerrequisito de `soda step`/`soda status` y no un rodeo (D-027), y se fijó el orden de
+construcción con `sesion-starter` como primer agente por ser el único de solo lectura
+(D-028). Quedan registradas cinco tareas nuevas (T-013 a T-017) para ese orden y T-012
+ajustada con su lugar fijado (segundo paso). El usuario verificó además por su cuenta que
+`soda init` (instalado con pipx) siembra tanto `_persistence/` como `_guideline/` en un
+proyecto real, confirmando T-009. No hay agentes propios de `soda` todavía.
 
 ## Qué sigue
 
-- [T-012](tasks.md#t-012--implementar-sesion-starter-como-agente-de-soda) — Implementar `sesion-starter` como agente de `soda`, acordada con el usuario como la siguiente tarea. Es la de menor riesgo de los agentes propios porque ya existe un prototipo probado (`harness-starter` + skill `session-startup` de este mismo repo, ejercitado cinco sesiones); sería también el primer consumidor real de `Provider`/`ClaudeCLIProvider`. Precondición acotada: resolver la pregunta de diseño de `agents-and-evaluation.md` §5 solo para este agente, no para los doce arquetipos.
-- Descartada explícitamente como alternativa a T-012: implementar `CodexCLIProvider` antes, porque añadir un segundo proveedor sin consumidor del primero profundiza código sin uso.
-- Queda como decisión de diseño abierta, no como edición pendiente: si `agents-and-evaluation.md` §5 (~12 arquetipos de agente) describe el destino o especifica ya lo que se construye; para T-012 basta resolverla para un solo agente.
-- Sin tareas registradas todavía para `agent-worker` ni `sesion-closer`; depende de cómo avance T-012.
+- [T-013](tasks.md#t-013--soda-start-rama-de-proyecto-vacío-bootstrap-git-en-python-puro) — `soda start`, rama de proyecto vacío: bootstrap Git en Python puro (`git init`, `.gitignore`, URL de GitHub, remote, commit, push). Es el punto de entrada de la siguiente sesión.
+- [T-012](tasks.md#t-012--implementar-sesion-starter-como-agente-de-soda) — `sesion-starter`, segundo paso del orden de construcción (D-028): único agente de solo lectura, con prototipo ya probado (`harness-starter` + skill `session-startup`, seis sesiones) y consumidor real de `Provider`/`ClaudeCLIProvider`.
+- [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) — `state.yaml`, prerrequisito de `soda step`/`soda status` (D-027).
+- [T-015](tasks.md#t-015--soda-status-lectura-del-estado-cero-cuota) — `soda status`, lectura del estado, cero cuota.
+- [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — `soda step`, agentes especializados (D-022).
+- [T-017](tasks.md#t-017--soda-close-invocar-a-sesion-closer) — `soda close`, invoca a `sesion-closer`.
+- Descartada explícitamente como alternativa: implementar `CodexCLIProvider` antes de tener consumidor del primer proveedor.
 
 ## Historial de hitos
+
+### 2026-07-23 — Sesión de diseño: alcance de agentes, naturaleza del orquestador e interfaz de comandos (D-022 a D-028, C-007, L-010)
+
+Sin código nuevo. Se resolvió que `agent-worker` no se construye (era ejemplo genérico) y en
+su lugar se construyen agentes especializados según los arquetipos de
+`agents-and-evaluation.md` §5, que pasa de descripción a hoja de ruta (D-022, D-023). Se
+corrigió el supuesto de que `soda` corre dentro de una sesión de Claude Code/Codex: es un
+script de Python en terminal y es el propio orquestador (D-024, lección L-010); se decidió
+posponer un orquestador LLM porque el camino feliz ya es mecánico (D-025). Se descubrió que
+`claude -p` no tiene canal con el humano, así que gates y diálogo viven en Python (C-007).
+Se diseñó la interfaz de cinco comandos (`init`/`start`/`step`/`status`/`close`, D-026), se
+fijó `state.yaml` como prerrequisito de `step`/`status` (D-027) y se estableció el orden de
+construcción completo con `sesion-starter` como primer agente (D-028). Registradas T-013 a
+T-017; T-012 ajustada con su lugar fijado en el orden. El usuario verificó `soda init` en un
+proyecto real, confirmando T-009.
 
 ### 2026-07-23 — `soda init` siembra `_guideline/` y taxonomía de estado unificada (T-009, T-011)
 

@@ -10,6 +10,7 @@
 | [C-004](#c-004--no-confundir-agentes-del-harness-con-agentes-de-claude-code-de-este-repo) | No confundir agentes del harness con agentes de Claude Code de este repo |
 | [C-005](#c-005--la-instalación-editable-acopla-el-comando-global-soda-al-repo-en-disco) | La instalación editable acopla el comando global `soda` al repo en disco |
 | [C-006](#c-006--la-cuota-de-suscripción-es-el-presupuesto-real-no-el-dinero) | La cuota de suscripción es el presupuesto real, no el dinero |
+| [C-007](#c-007--claude--p-no-tiene-canal-con-el-humano) | `claude -p` no tiene canal con el humano |
 
 ## Detalle de restricciones
 
@@ -54,3 +55,10 @@
 - **Descripción:** El arnés corre sobre suscripciones (CLIs oficiales como `claude`, `codex`), no sobre API de pago por token (`idea.md`). El recurso escaso es la ventana de cuota con límite de tasa, no el costo en tokens.
 - **Impacto:** Toda decisión de diseño que multiplique invocaciones de agente (por ejemplo, paralelizar subagentes) debe justificarse contra la cuota disponible, no contra el costo en tokens. Obligó a reescribir E-007 de `principles.md` (paralelización condicionada, default secuencial) y a crear E-014 (presupuesto de sesión y límite de pérdida).
 - **Origen:** Detectado al revisar E-007 de `principles.md` durante T-007: la recomendación original de 3-5 subagentes en paralelo venía de research sobre API de pago por token, incompatible con el modelo de suscripción del proyecto.
+
+### C-007 — `claude -p` no tiene canal con el humano
+
+- **Tipo:** Técnica
+- **Descripción:** Un agente lanzado como subproceso (`claude -p "<prompt>"`) recibe un prompt, devuelve texto y muere; no puede preguntar nada al humano a mitad de camino. El script de `soda`, en cambio, tiene stdin/stdout y puede hacer `input()`.
+- **Impacto:** Los gates humanos y todo diálogo con el usuario tienen que vivir en Python, no en un agente, sea cual sea el diseño del orquestador (respalda E-012 en la forma concreta que toma este proyecto). Queda abierto, sin resolver: el Descubridor / `onboarding-interviewer` por definición entrevista al humano en varios turnos y no puede ser un `claude -p` a secas; las opciones esbozadas sin decidir son que Python conduzca la entrevista turno a turno reinvocando con el historial acumulado, o que `ClaudeCLIProvider` gane un modo sesión.
+- **Origen:** Detectado durante la sesión de diseño de la interfaz de comandos, al analizar el bootstrap Git de `soda start` (necesita pedir la URL de GitHub al humano) y la naturaleza del Descubridor.

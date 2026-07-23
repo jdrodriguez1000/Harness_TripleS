@@ -13,6 +13,7 @@
 | [L-007](#l-007--un-archivo-importante-puede-llevar-sesiones-sin-estar-en-git) | Un archivo importante puede llevar sesiones sin estar en git | 2026-07-23 |
 | [L-008](#l-008--estimar-una-reducción-de-líneas-falla-cuando-el-contenido-a-quitar-vive-dentro-de-otras-líneas) | Estimar una reducción de líneas falla cuando el contenido a quitar vive dentro de otras líneas | 2026-07-23 |
 | [L-009](#l-009--un-recorte-por-palabra-clave-puede-destruir-contenido-con-un-referente-distinto-que-comparte-la-misma-palabra) | Un recorte por palabra clave puede destruir contenido con un referente distinto que comparte la misma palabra | 2026-07-23 |
+| [L-010](#l-010--no-asumir-el-entorno-de-ejecución-del-orquestador-sin-verificarlo-con-el-usuario) | No asumir el entorno de ejecución del orquestador sin verificarlo con el usuario | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -78,3 +79,10 @@
 - **Contexto:** Al recortar el alcance de ML en `methodology.md` (T-010 paso 1), la palabra "probabilístico" tenía dos referentes distintos: el producto ML que el harness ya no cubre (se retiraba) y el agente LLM que construye el harness (tesis central, se conservaba). Un `grep ML` naíf sobre "probabilístico" habría arrastrado las 4 apariciones del segundo referente.
 - **Lección:** Un recorte de alcance guiado por palabra clave o por tema superficial (ej. "todo lo de ML") puede destruir contenido no relacionado que comparte vocabulario con lo que se quiere quitar, si no se distingue antes el referente real de cada aparición.
 - **Aplicación:** Antes de aplicar un recorte temático, listar cada aparición de los términos ambiguos y clasificar su referente real, no solo su forma superficial; conservar explícitamente las apariciones que apuntan a un concepto distinto del que se está retirando.
+
+### L-010 — No asumir el entorno de ejecución del orquestador sin verificarlo con el usuario
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Durante una sesión de diseño, se asumió que `soda` corría dentro de un harness de Claude Code o Codex, y que la frase de la doctrina "el orquestador es la sesión principal" aplicaba tal cual a ese entorno. El usuario corrigió: `soda` es un script de Python en terminal, sin sesión principal de Claude Code de por medio (ver D-024).
+- **Lección:** Un supuesto sobre el entorno de ejecución de una pieza central del diseño (aquí, el orquestador) puede quedar sin verificar durante varias sesiones si nadie lo contrasta explícitamente contra la naturaleza real del producto que se está construyendo (`soda` es un script Python invocado desde terminal, no un agente de Claude Code).
+- **Aplicación:** Al leer frases de la doctrina que mencionan "sesión principal" o similares, contrastar primero contra qué es literalmente el proceso que las ejecuta en este proyecto, en vez de asumir que se refieren al entorno donde se está teniendo la conversación de diseño.

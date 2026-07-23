@@ -25,6 +25,13 @@
 | [D-019](#d-019--dividir-methodologymd-sin-renumerar-secciones) | Dividir `methodology.md` sin renumerar secciones | 2026-07-23 |
 | [D-020](#d-020--enmienda-a-d-012-init-también-siembra-_guideline) | Enmienda a D-012: `init` también siembra `_guideline/` | 2026-07-23 |
 | [D-021](#d-021--_persistence-y-_guideline-se-siembran-igual-pero-se-reportan-distinto) | `_persistence/` y `_guideline/` se siembran igual pero se reportan distinto | 2026-07-23 |
+| [D-022](#d-022--agent-worker-no-se-construye-en-su-lugar-agentes-especializados) | `agent-worker` no se construye; en su lugar, agentes especializados | 2026-07-23 |
+| [D-023](#d-023--agents-and-evaluationmd-5-pasa-de-descripción-a-hoja-de-ruta) | `agents-and-evaluation.md` §5 pasa de descripción a hoja de ruta | 2026-07-23 |
+| [D-024](#d-024--el-orquestador-es-el-script-de-python-no-una-sesión-de-claude-code-o-codex) | El orquestador es el script de Python, no una sesión de Claude Code o Codex | 2026-07-23 |
+| [D-025](#d-025--posponer-el-orquestador-llm-se-resuelve-cuando-duela) | Posponer el orquestador LLM: se resuelve cuando duela | 2026-07-23 |
+| [D-026](#d-026--diseño-de-la-interfaz-de-comandos-init-start-step-status-close) | Diseño de la interfaz de comandos: `init` / `start` / `step` / `status` / `close` | 2026-07-23 |
+| [D-027](#d-027--stateyaml-deja-de-ser-opcional-es-prerrequisito-de-soda-step-y-soda-status) | `state.yaml` deja de ser opcional: es prerrequisito de `soda step` y `soda status` | 2026-07-23 |
+| [D-028](#d-028--orden-de-construcción-soda-start-sesion-starter-stateyaml-status-step-close) | Orden de construcción: `soda start` → `sesion-starter` → `state.yaml` → `status` → `step` → `close` | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -195,3 +202,59 @@
 - **Decisión:** Ambas carpetas se siembran con la misma regla no destructiva de D-011 (nunca se toca un archivo existente sin `--force`), pero se reportan distinto: en `_persistence/`, un archivo existente siempre se salta como `SALTADO`, sin compararlo; en `_guideline/`, un archivo existente que no coincide byte a byte con el del paquete se reporta con la constante nueva `DIFIERE` ("difiere, saltado") en vez de `SALTADO`, avisando del desfase y sugiriendo `--force`.
 - **Alternativas descartadas:** Reportar ambas carpetas igual (todo `SALTADO`), descartado porque un destino que instaló una versión vieja de `soda` se quedaría con una `methodology.md` desactualizada para siempre y en silencio, sin ninguna señal de que existe una versión más nueva.
 - **Consecuencias:** Ninguna de las dos carpetas se toca sin `--force` (D-011 sigue rigiendo intacto); lo único que cambia es que el desfase deja de ser silencioso. Cubierto por un test explícito de que la memoria nunca se marca `DIFIERE` (T-009).
+
+### D-022 — `agent-worker` no se construye; en su lugar, agentes especializados
+
+- **Fecha:** 2026-07-23
+- **Contexto:** `idea.md` menciona tres agentes de ejemplo: `sesion-starter`, `agent-worker`, `sesion-closer`. El usuario aclaró explícitamente que esa lista es de ejemplo, no un catálogo cerrado a implementar tal cual.
+- **Decisión:** `sesion-starter` y `sesion-closer` sí se implementan como agentes reales del harness. `agent-worker` NO se va a crear: era un placeholder genérico de "el que hace el trabajo". En su lugar se construyen agentes especializados (revisor de código, probador, implementador, refactorizador, etc.).
+- **Alternativas descartadas:** Implementar `agent-worker` como agente genérico único que absorbe todo el trabajo de construcción, descartado explícitamente por el usuario a favor de agentes con oficio acotado.
+- **Consecuencias:** Los arquetipos con nombre ya listados en `agents-and-evaluation.md` §5 (Probador, Implementador, Refactorizador, Revisor de código, Verificador, Especificador, Definidor, Planificador, Integrador de pruebas, Descubridor, Prototipador) son los agentes especializados que hay que construir. Ver D-023.
+
+### D-023 — `agents-and-evaluation.md` §5 pasa de descripción a hoja de ruta
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Quedaba abierta desde T-010/T-011 la pregunta de si `agents-and-evaluation.md` §5 (los ~12 arquetipos de agente) describe el destino del harness o especifica ya lo que se va a construir.
+- **Decisión:** §5 especifica lo que se va a construir, no solo lo describe. Queda formalmente como hoja de ruta de los agentes especializados del harness (ver D-022).
+- **Alternativas descartadas:** Dejar §5 como descripción aspiracional sin compromiso de construcción, descartado porque el usuario confirmó que esos arquetipos son exactamente los agentes especializados que reemplazan a `agent-worker`.
+- **Consecuencias:** Resuelve la precondición de diseño que tenía T-012 pendiente. El orden de construcción (D-028) usa estos arquetipos como catálogo de referencia para `soda step` (T-016).
+
+### D-024 — El orquestador es el script de Python, no una sesión de Claude Code o Codex
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Se asumía que `soda` corría dentro de un harness de Claude Code o Codex, y que la frase de la doctrina "el orquestador es la sesión principal" (`principles.md` §2, `agents-and-evaluation.md` §5) aplicaba tal cual. El usuario corrigió: `soda` es un script de Python que se ejecuta en una terminal (`python main.py` / `soda <comando>`); no hay sesión principal de Claude Code, hay un proceso de Python.
+- **Decisión:** El orquestador es el script de `soda`. Quién invoca a los agentes siempre es Python: en el instante en que arranca el script, lo único vivo es Python, ningún LLM existe todavía y un agente no puede autoinvocarse desde la nada.
+- **Alternativas descartadas:** Ninguna real; se aclara que "quién invoca" no era una pregunta de diseño con alternativas, sino un supuesto equivocado que corregir. La pregunta de diseño genuina era otra: quién decide a quién invocar (ver D-025).
+- **Consecuencias:** Corrige la lectura de `principles.md` §2 y `agents-and-evaluation.md` §5 para este proyecto: "sesión principal" se traduce como "el script `soda`". Ver también L-010.
+
+### D-025 — Posponer el orquestador LLM: se resuelve cuando duela
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Separadas dos preguntas antes confundidas: (a) quién invoca a los agentes (siempre Python, D-024, sin alternativa) y (b) quién decide a quién invocar. El camino feliz de un incremento ya tiene su secuencia escrita en `methodology.md` §3 (11 pasos con gates) y criterios de avance mecánicos (`pytest` rojo/verde, NC-005, §3.1). El juicio real de coordinación solo aparece en tres sitios: qué slice va primero (ya es "Humano + sesión principal" en §3), conducir la entrevista de descubrimiento (es hacer el trabajo, no orquestar) y qué hacer cuando algo falla (Verificador NO CONFORME, reinvocación con consigna corregida de E-014).
+- **Decisión:** El orquestador LLM se pospone. Solo se justifica en el camino infeliz (fallos); mientras no exista, el fallo escala al humano, que es lo que E-014 manda de todos modos.
+- **Alternativas descartadas:** Construir un orquestador LLM que decida a qué agente invocar en cada paso del camino feliz, descartado porque gastaría cuota releyendo una tabla ya escrita en el documento (§3), sin aportar juicio real.
+- **Consecuencias:** `soda step` (T-016) resuelve el camino feliz de forma mecánica contra `state.yaml` (T-014) y §3, sin invocar un LLM coordinador. El diseño de un orquestador LLM para el camino infeliz queda diferido hasta que el escalado manual al humano resulte doloroso en la práctica.
+
+### D-026 — Diseño de la interfaz de comandos: `init` / `start` / `step` / `status` / `close`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** El usuario propuso partir el trabajo del harness en comandos ejecutados desde la terminal del proyecto destino. Hallazgo de fondo: al partir el trabajo en comandos, los gates humanos salen gratis (el humano es el bucle; entre un comando y el siguiente revisa lo producido, que es lo que piden los gates de §3 pasos 5, 7 y 11); además cada comando es una unidad acotada de cuota (E-014).
+- **Decisión:** Cinco comandos. `soda init` (ya existe: siembra `_persistence/` y `_guideline/`). `soda start` (dos ramas: bootstrap Git en Python puro si el proyecto está vacío, o invocar a `sesion-starter` si ya hay memoria escrita). `soda step` (nombre preferido sobre `soda continue`: hace UN paso y devuelve el control, no corre hasta terminar). `soda status` (verbo nuevo, solo lectura, cero cuota: "¿dónde estoy y qué haría el próximo `step`?"). `soda close` (invoca a `sesion-closer`; el commit y el push los hace Python).
+- **Alternativas descartadas:** `soda continue` en vez de `soda step`, descartado porque "continue" sugiere avanzar hasta el final en vez de un paso acotado con gate. Omitir `soda status`, descartado porque faltaba un comando de solo lectura y sin riesgo para verificar la detección de estado antes de que `soda step` dependiera de ella.
+- **Consecuencias:** Fija el orden de construcción (D-028) y el prerrequisito de `state.yaml` (D-027). El bootstrap de proyecto vacío dentro de `soda start` es 100% Python sin agentes (ver justificación en D-028/T-013): es determinista, requiere hablar con el humano para pedir la URL de GitHub (imposible para un `claude -p`, ver C-007) y toca Git, la única operación con consecuencia PARADA (NC-007).
+
+### D-027 — `state.yaml` deja de ser opcional: es prerrequisito de `soda step` y `soda status`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Detectar en qué punto está un incremento parece fácil en principio (¿hay spec?, ¿aprobada?, ¿hay plan?, ¿tests en rojo o verde?) combinando el disco con la tabla de §3. Pero hoy no hay dónde leerlo de forma fiable: `methodology.md` §0.3 lista `_increments/<id>/state.yaml` como pieza `[PENDIENTE]`, y su sustituto declarado es que el estado se lleva en `_persistence/tasks.md` en narrativa, que no se parsea de forma determinista.
+- **Decisión:** `soda step` es el comando que obliga a construir `state.yaml`; no es un rodeo, es su prerrequisito.
+- **Alternativas descartadas:** Que un LLM lea la narrativa de `tasks.md` y deduzca el punto del incremento, descartado porque pagaría cuota en cada invocación para reconstruir algo que un archivo pequeño diría gratis y sin error.
+- **Consecuencias:** T-014 (`state.yaml`) queda como paso 3 del orden de construcción, antes de `soda status` (T-015) y `soda step` (T-016), que dependen de él.
+
+### D-028 — Orden de construcción: `soda start` → `sesion-starter` → `state.yaml` → `status` → `step` → `close`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Se había propuesto un orden que dejaba a `sesion-starter` al final; al preguntarse dónde entraba, se corrigió. Trace del primer run: en un proyecto vacío, `sesion-starter` no tiene trabajo (su oficio es reconstruir contexto de sesiones anteriores y no hay ninguna; Python detecta "memoria vacía" leyendo el disco sin LLM). El primer agente que se invoca en la vida de un proyecto es el Descubridor, no el starter; el starter sirve del segundo run en adelante.
+- **Decisión:** Orden final: (1) `soda start`, rama de proyecto vacío — bootstrap Git puro en Python, sin agentes (T-013, próximo paso de la siguiente sesión); (2) `sesion-starter`, rama de proyecto con memoria — primer agente del harness (T-012); (3) `state.yaml`, formato mínimo del estado del incremento (T-014); (4) `soda status`, lee el estado, cero cuota (T-015); (5) `soda step`, los agentes especializados (T-016); (6) `soda close`, `sesion-closer` (T-017).
+- **Alternativas descartadas:** Construir primero `sesion-closer` con el argumento de que "el starter lee lo que el closer escribe" (dependencia lógica), descartado como criterio de orden de *construcción* porque la memoria de este mismo repo (`900_persistence/`) ya existe y está llena de seis sesiones de contenido auténtico: no hace falta construir el closer antes para tener con qué probar el starter. Razón positiva de que `sesion-starter` vaya segundo y no al final: es el único agente que no puede romper nada (solo lectura, el peor caso es un resumen equivocado en pantalla), ya tiene banco de pruebas real y su prompt ya está escrito y probado (skill `session-startup`, ejercitada seis veces).
+- **Consecuencias:** Fija el punto de entrada de la próxima sesión (T-013). Cada comando se termina como unidad antes de pasar al siguiente.

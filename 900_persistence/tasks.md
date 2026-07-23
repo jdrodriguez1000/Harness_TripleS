@@ -16,6 +16,11 @@
 | [T-010](#t-010--revisión-de-fondo-de-methodologymd) | Revisión de fondo de `methodology.md` | Implementada |
 | [T-011](#t-011--unificar-taxonomía-de-estado-entre-principlesmd-5-y-el-03-nuevo) | Unificar taxonomía de estado entre `principles.md` §5 y el §0.3 nuevo | Implementada |
 | [T-012](#t-012--implementar-sesion-starter-como-agente-de-soda) | Implementar `sesion-starter` como agente de `soda` | No implementada |
+| [T-013](#t-013--soda-start-rama-de-proyecto-vacío-bootstrap-git-en-python-puro) | `soda start`, rama de proyecto vacío: bootstrap Git en Python puro | No implementada |
+| [T-014](#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) | `state.yaml`: formato mínimo del estado del incremento | No implementada |
+| [T-015](#t-015--soda-status-lectura-del-estado-cero-cuota) | `soda status`: lectura del estado, cero cuota | No implementada |
+| [T-016](#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) | `soda step`: invocar al agente especializado que corresponda | No implementada |
+| [T-017](#t-017--soda-close-invocar-a-sesion-closer) | `soda close`: invocar a `sesion-closer` | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -105,4 +110,39 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Con T-009 cerrada, el proyecto destino ya recibe memoria (`_persistence/`) y doctrina (`_guideline/`), pero nada las lee: el paquete siembra y se va. `sesion-starter` cierra ese lazo. Es el de menor riesgo de los agentes propios de `soda` porque ya existe un prototipo probado: el agente `harness-starter` de este repo con su skill `session-startup`, ejercitado durante cinco sesiones; la especificación se porta, no se inventa. Sería además el primer consumidor real de la capa de proveedores (`Provider` + `ClaudeCLIProvider`, T-002/T-003), que hoy funciona pero nadie llama.
-- **Pendiente:** Todo el diseño e implementación. Precondición acotada: la pregunta de diseño abierta sobre `agents-and-evaluation.md` §5 (si los ~12 arquetipos de agente describen el destino o especifican lo que se construye) hay que resolverla solo para este agente, no para los doce. Descartada explícitamente como alternativa de "siguiente tarea": implementar `CodexCLIProvider` primero, porque añadir un segundo proveedor cuando el primero todavía no tiene consumidor profundiza código sin uso.
+- **Pendiente:** Todo el diseño e implementación. La precondición original (si `agents-and-evaluation.md` §5 describe el destino o especifica lo que se construye) quedó resuelta en sesión de diseño posterior (ver D-022, D-023): §5 pasa de descripción a hoja de ruta, así que sí especifica lo que se construye. Fijado también el lugar de esta tarea en el orden de construcción (D-028): es el **segundo** paso, justo después de T-013 (bootstrap de proyecto vacío), y antes de `state.yaml`/`soda status`/`soda step`/`soda close`. Razón de ir segundo: es el único agente que no puede romper nada (solo lectura), ya tiene banco de pruebas real (las seis sesiones de contenido auténtico de `900_persistence/` de este repo) y su prompt ya está escrito y probado (skill `session-startup`, ejercitada seis veces). Descartada explícitamente como alternativa de "siguiente tarea": implementar `CodexCLIProvider` primero, porque añadir un segundo proveedor cuando el primero todavía no tiene consumidor profundiza código sin uso.
+
+### T-013 — `soda start`, rama de proyecto vacío: bootstrap Git en Python puro
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** `soda start` tiene dos ramas internas. Esta tarea cubre la rama de proyecto vacío: `git init`, `.gitignore`, pedir al humano la URL del repo de GitHub, `git remote add`, primer commit, push. Todo en Python puro, sin invocar ningún LLM (D-026). Es el punto de entrada de la siguiente sesión.
+- **Pendiente:** Todo el diseño e implementación. Depende de detectar "proyecto vacío" (memoria sin escribir) para decidir la rama; la otra rama (proyecto con memoria) invoca a `sesion-starter` (T-012) y no es parte de esta tarea.
+
+### T-014 — `state.yaml`: formato mínimo del estado del incremento
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Definir el formato mínimo de `_increments/<id>/state.yaml`, hoy listado como pieza `[PENDIENTE]` en `methodology.md` §0.3. Es prerrequisito de `soda step` y `soda status` (D-027): sin él no hay dónde leer de forma determinista en qué punto está un incremento (spec, plan, rojo/verde), y la narrativa en prosa de `tasks.md` no se puede parsear.
+- **Pendiente:** Todo el diseño e implementación.
+
+### T-015 — `soda status`: lectura del estado, cero cuota
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Comando de solo lectura: "¿dónde estoy y qué haría el próximo `step`?". No invoca ningún LLM, así que no consume cuota ni tiene riesgo. Depende de `state.yaml` (T-014). Sirve además como la forma más barata de verificar que la detección de estado funciona antes de que `soda step` dependa de ella.
+- **Pendiente:** Todo el diseño e implementación.
+
+### T-016 — `soda step`: invocar al agente especializado que corresponda
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Detecta el punto del proyecto (vía `state.yaml`, T-014) y ejecuta el siguiente paso con el agente especializado que corresponda (Probador, Implementador, Refactorizador, Revisor de código, etc., ver D-022). Nombre elegido sobre `soda continue` porque la intención es "haz UN paso y devuelve el control", no "sigue hasta terminar"; así funcionan los gates humanos de §3 (D-026).
+- **Pendiente:** Todo el diseño e implementación. Depende de que existan agentes especializados que invocar; el camino feliz no necesita juicio de orquestación LLM (D-025), así que la selección del agente es mecánica contra la tabla de §3.
+
+### T-017 — `soda close`: invocar a `sesion-closer`
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Invoca al agente `sesion-closer`: redacta el hito, decide qué va a `lessons.md` y qué a `decisions.md`, mantiene índices (juicio de redacción, no se hardcodea). El commit y el push los hace Python al final, no el agente.
+- **Pendiente:** Todo el diseño e implementación. Último paso del orden de construcción (D-028).

@@ -7,21 +7,31 @@
 
 ## Estado actual
 
-Primera sesión real del proyecto. Se hizo el bootstrap de Git + GitHub (remoto
-`https://github.com/jdrodriguez1000/Harness_TripleS.git`, rama `master`) y se construyó el
-esqueleto Python instalable del paquete `soda` ("Software Development Agentic"), con layout
-`src/`, `pyproject.toml`, entorno virtual y una suite de smoke tests que pasa. El repo está
-publicado y sincronizado con GitHub. Aún no existe ningún código funcional de orquestación
-de agentes; el siguiente frente es la capa de proveedores (invocación de CLIs de IA como
-subproceso).
+La capa de proveedores del harness ya funciona de extremo a extremo: `Provider` (ABC) en
+`src/soda/core/provider.py` y `ClaudeCLIProvider` en `src/soda/providers/claude_cli.py`
+invocan el CLI `claude` real por subproceso, con el prompt entregado por stdin (validado con
+prompts de más de 13.000 caracteres y con texto UTF-8 con acentos). Verificado con 14 tests
+automatizados (`pytest`, `ruff` limpio) y con `scripts/probar_provider.py` corriendo contra
+el CLI instalado en la máquina. Aún no existe ninguna CLI propia del harness (`soda init` no
+funciona todavía): falta la plantilla de `_persistence`, el módulo `soda.cli` y habilitar el
+entry point con pipx. Esa es la ruta acordada para la próxima sesión.
 
 ## Qué sigue
 
-- [T-002](tasks.md#t-002--provider-abstracto--claudecliprovider) — `Provider` abstracto + `ClaudeCLIProvider`
-- [T-003](tasks.md#t-003--script-de-prueba-manual-end-to-end-del-provider) — Script de prueba manual end-to-end del provider
-- Más adelante: módulo `soda.cli` con subcomandos (`soda init`, `soda start`, `soda close`), plantillas reales de los 6 archivos de `_persistence`, y activar la instalación con `pipx install -e` una vez exista el entry point.
+- [T-004](tasks.md#t-004--plantilla-de-contenido-de-_persistence) — Definir el contenido de la plantilla `_persistence`
+- [T-005](tasks.md#t-005--srcsodaclipy-con-el-subcomando-init) — Escribir `src/soda/cli.py` con el subcomando `init`
+- [T-006](tasks.md#t-006--habilitar-entry-point-e-instalar-con-pipx) — Habilitar el entry point e instalar con pipx
+- Queda sobre la mesa, sin comprometer, la alternativa de implementar `CodexCLIProvider` antes de subir a la CLI; se eligió priorizar la ruta hacia `soda init`.
 
 ## Historial de hitos
+
+### 2026-07-23 — Capa de proveedores: `Provider` + `ClaudeCLIProvider` verificados en real
+
+Implementadas y verificadas T-002 y T-003: la abstracción `Provider` y `ClaudeCLIProvider`
+quedan probadas contra el CLI `claude` real (prompts largos, UTF-8, caminos de error), no
+solo con mocks. Se registran las decisiones de ubicación de proveedores concretos, entrega
+del prompt por stdin, e interfaz mínima del `Provider` (D-006 a D-008), y la lección sobre
+la codificación de stdout en Windows (L-003).
 
 ### 2026-07-23 — Bootstrap del repositorio y esqueleto del paquete `soda`
 

@@ -9,6 +9,9 @@
 | [D-003](#d-003--modelo-de-distribución-instalación-única-vía-pipx) | Modelo de distribución: instalación única vía `pipx` | 2026-07-23 |
 | [D-004](#d-004--layout-src-en-vez-de-flat-layout) | Layout `src/` en vez de flat layout | 2026-07-23 |
 | [D-005](#d-005--build-backend-hatchling-python-312-y-dependencias-mínimas) | Build backend hatchling, Python 3.12 y dependencias mínimas | 2026-07-23 |
+| [D-006](#d-006--implementaciones-concretas-de-provider-en-srcsodaproviders-no-en-core) | Implementaciones concretas de `Provider` en `src/soda/providers/`, no en `core/` | 2026-07-23 |
+| [D-007](#d-007--el-prompt-se-entrega-al-cli-por-stdin-no-como-argumento) | El prompt se entrega al CLI por stdin, no como argumento | 2026-07-23 |
+| [D-008](#d-008--interfaz-de-provider-deliberadamente-mínima) | Interfaz de `Provider` deliberadamente mínima | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -51,3 +54,27 @@
 - **Decisión:** Build backend `hatchling`, Python objetivo `>=3.12` (entorno local verificado en 3.12.10), sin dependencias de runtime; `pytest` y `ruff` como extra opcional `[dev]`.
 - **Alternativas descartadas:** No se evaluaron otros build backends en esta sesión; se eligió hatchling directamente por simplicidad.
 - **Consecuencias:** Instalar el paquete en producción no arrastra dependencias externas; el extra `[dev]` es necesario para testear y lintear.
+
+### D-006 — Implementaciones concretas de `Provider` en `src/soda/providers/`, no en `core/`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al crear `ClaudeCLIProvider`, decidir dónde vive el código de cada proveedor concreto respecto a la abstracción `Provider`.
+- **Decisión:** `core/` guarda solo abstracciones compartidas (coherente con su docstring); las implementaciones concretas viven en `src/soda/providers/` (`ClaudeCLIProvider` en `providers/claude_cli.py`).
+- **Alternativas descartadas:** Meter `ClaudeCLIProvider` directamente en `core/`, descartado porque mezclaría la abstracción con una implementación concreta y dificultaría añadir proveedores nuevos.
+- **Consecuencias:** Añadir un proveedor nuevo (p. ej. `CodexCLIProvider`) es añadir un módulo en `providers/` sin tocar `core/` ni nada más.
+
+### D-007 — El prompt se entrega al CLI por stdin, no como argumento
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Definir cómo `ClaudeCLIProvider` pasa el prompt al ejecutable `claude`.
+- **Decisión:** El prompt se entrega por stdin (`subprocess.run(..., input=prompt)`), nunca como argumento de línea de comandos.
+- **Alternativas descartadas:** Pasar el prompt como argumento posicional del CLI, descartado por el límite de ~8191 caracteres de la línea de comandos de Windows, que los prompts del arnés (system prompt + contexto de `_persistence`) superarán con facilidad.
+- **Consecuencias:** Validado en real con un prompt de 13.109 caracteres devuelto correctamente. Cualquier proveedor nuevo basado en CLI debe seguir el mismo patrón de entrada por stdin.
+
+### D-008 — Interfaz de `Provider` deliberadamente mínima
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Diseñar la superficie de la clase abstracta `Provider`.
+- **Decisión:** Un solo método abstracto, `send(prompt: str) -> str`.
+- **Alternativas descartadas:** Añadir de entrada parámetros para modelo configurable, system prompt, streaming, y modo API/key para producción (mencionado en `idea.md:38-40`); descartados hasta que exista un caso de uso real que los pida.
+- **Consecuencias:** La interfaz crecerá solo cuando haya necesidad concreta; cualquier extensión futura debe justificarse con un caso de uso real, no anticiparse.

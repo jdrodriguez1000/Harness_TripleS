@@ -1,4 +1,4 @@
-"""Tests de T-004: plantilla de `_persistence` y su accesor.
+"""Tests de T-004 y T-009: plantillas de `_persistence`/`_guideline` y sus accesores.
 
 El riesgo real no es que los archivos existan en el árbol de fuentes, sino que
 no viajen en el paquete instalado. Por eso todo se accede vía el paquete
@@ -8,8 +8,11 @@ no viajen en el paquete instalado. Por eso todo se accede vía el paquete
 import pytest
 
 from soda.templates import (
+    GUIDELINE_FILENAMES,
     PERSISTENCE_FILENAMES,
+    guideline_root,
     persistence_root,
+    read_guideline_template,
     read_persistence_template,
 )
 
@@ -85,3 +88,57 @@ def test_las_plantillas_conservan_los_acentos():
 def test_nombre_desconocido_falla_con_mensaje_util():
     with pytest.raises(KeyError, match="no es una plantilla"):
         read_persistence_template("inventado.md")
+
+
+# --- _guideline: los documentos normativos (T-009) --------------------------
+
+# Encabezado con el que abre cada documento normativo.
+ENCABEZADOS_GUIDELINE = {
+    "principles.md": "# Principios y Reglas del Sistema de Agentes",
+    "methodology.md": "# Metodología de Construcción",
+    "agents-and-evaluation.md": "# Agentes y Evaluación",
+}
+
+
+def test_son_exactamente_los_tres_documentos_normativos():
+    assert set(GUIDELINE_FILENAMES) == set(ENCABEZADOS_GUIDELINE)
+    assert len(GUIDELINE_FILENAMES) == 3
+
+
+def test_la_raiz_de_la_guia_existe_en_el_paquete():
+    assert guideline_root().is_dir()
+
+
+def test_la_guia_no_trae_archivos_de_mas():
+    presentes = {hijo.name for hijo in guideline_root().iterdir()}
+    assert presentes == set(GUIDELINE_FILENAMES)
+
+
+@pytest.mark.parametrize("nombre", GUIDELINE_FILENAMES)
+def test_cada_documento_normativo_es_legible_desde_el_paquete(nombre):
+    """Lo que se comprueba es que viaje en el paquete, no que esté en el repo."""
+    assert read_guideline_template(nombre).strip()
+
+
+@pytest.mark.parametrize("nombre", GUIDELINE_FILENAMES)
+def test_cada_documento_normativo_llega_con_contenido(nombre):
+    """Al revés que la memoria: la guía se siembra llena, no vacía."""
+    contenido = read_guideline_template(nombre)
+
+    assert contenido.startswith(ENCABEZADOS_GUIDELINE[nombre])
+    assert len(contenido.splitlines()) > 100
+
+
+def test_la_guia_conserva_los_acentos():
+    """UTF-8 sobrevive al empaquetado (ver L-003)."""
+    assert "ó" in read_guideline_template("principles.md")
+
+
+def test_documento_normativo_desconocido_falla_con_mensaje_util():
+    with pytest.raises(KeyError, match="no es una plantilla"):
+        read_guideline_template("inventado.md")
+
+
+def test_memoria_y_guia_no_comparten_nombres():
+    """Se siembran en carpetas distintas, pero un choque de nombres confundiría."""
+    assert not set(PERSISTENCE_FILENAMES) & set(GUIDELINE_FILENAMES)

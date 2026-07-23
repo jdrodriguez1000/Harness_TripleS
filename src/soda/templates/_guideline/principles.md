@@ -56,13 +56,34 @@ listan en §4 con su destino, para que ninguna referencia externa quede colgando
 Las reglas de §3 llevan un **predicado verificable** y una **consecuencia**. El predicado se escribe
 **solo contra evidencia disponible hoy**: artefactos en disco y `git log`. Lo que exige saber *en qué
 orden ocurrieron las cosas dentro de una invocación* («¿leyó el contrato antes de escribir?», «¿un solo
-`Write`?») necesita un **motor de traza** que aún no existe, y se declara en §5 con su gatillo de
-adopción, en vez de escribirse como si ya aplicara.
+`Write`?») necesita un **motor de traza** que aún no existe, y se declara en §5 como **`[PENDIENTE]`**,
+en vez de escribirse como si ya aplicara.
 
 > **Por qué.** Escribir predicados que nadie puede ejecutar es exactamente el fallo que
 > `agents-and-evaluation.md` §10.2 documenta haber cometido: perfiles de conformidad vivos en los prompts durante
 > tres corridas completas sin que nadie los corriera nunca. Una regla inejecutable no es una regla a
 > medias; es decoración.
+
+### 0.5 Estado de aplicación: las marcas son las de `methodology.md` §0.3
+
+No todo lo que este documento describe está disponible el día que se instala. La taxonomía que separa
+**lo que rige** de **lo que está por llegar** se define una sola vez, en **`methodology.md` §0.3**, y
+**rige también aquí**. No se redefine en este archivo: dos vocabularios de estado entre documentos que
+se citan mutuamente es precisamente lo que hay que evitar.
+
+| Marca | Significa | Cómo se revierte |
+|---|---|---|
+| *(sin marca)* | **NORMATIVO** — rige desde la primera sesión | — |
+| **`[DIFERIDO]`** | Decisión consciente de **no adoptarlo aún**; lleva **gatillo de adopción** | Con **evidencia** de que su ausencia degrada la calidad |
+| **`[PENDIENTE]`** | Se quiere, pero **falta una pieza nombrada** que el harness no entrega | **Entregando la pieza** |
+
+Hoy este documento **no tiene ningún ítem `[DIFERIDO]`**: todo lo de §1–§3 es normativo, y lo único no
+disponible son los tres `[PENDIENTE]` de §5. Que algo esté `[PENDIENTE]` **no relaja la regla**, relaja
+su **verificabilidad** — la distinción completa está en `methodology.md` §0.3.
+
+> Al citar «§0.3» entre archivos, **nómbralo con su archivo**: `methodology.md` §0.3 es *Estado de
+> aplicación*, y §0.3 de este documento es *Convención de códigos*. Cada documento numera sus propias
+> secciones §0.x.
 
 ---
 
@@ -372,15 +393,18 @@ colgando.
 
 ---
 
-## 5. Pendientes declarados
+## 5. `[PENDIENTE]` Pendientes declarados
 
 Lo que este documento **no** resuelve todavía, dicho explícitamente para que no se confunda con algo ya
-cubierto:
+cubierto. Los tres son **`[PENDIENTE]`** en el sentido de §0.5: se quieren, y lo que falta es una pieza
+nombrada que el harness aún no entrega. **Ninguno es `[DIFERIDO]`** —no hay aquí una decisión de «no
+vale la pena todavía»— así que **no se revierten con evidencia, sino entregando la pieza**.
 
-- **Predicados que exigen orden intra-invocación** («¿leyó el contrato antes de escribir?», «¿un solo
-  `Write`?», «¿la confirmación fue posterior al turno del humano?»). Requieren motor de traza (E-013).
-  **Gatillo de adopción:** cuando exista `_trace/` y un checker que lo lea.
-- **Umbral numérico de ventana de contexto** para el disparador de E-002. Requiere que el arnés exponga
-  esa medición. Hoy la decisión es del orquestador o del humano.
-- **Presupuesto de cuota cuantificado** en E-014 (cuánta holgura es "suficiente"). Requiere medir el
-  consumo real de una sesión típica; hasta entonces es juicio del orquestador.
+| Pendiente | Pieza que falta | Qué se hace mientras tanto |
+|---|---|---|
+| **Predicados que exigen orden intra-invocación** («¿leyó el contrato antes de escribir?», «¿un solo `Write`?», «¿la confirmación fue posterior al turno del humano?»), E-013 | **Motor de traza** + `_trace/` y un checker que lo lea | No se escriben como predicados: §0.4 los excluye. Manda el **gate humano**; la regla sigue siendo obligatoria, lo que falta es poder **demostrar** que se cumplió |
+| **Umbral numérico de ventana de contexto** para el disparador de E-002 | Que el arnés **exponga la medición** de ocupación de contexto | El disparador se evalúa por las señales externas de E-002; el corte lo decide el orquestador o el humano |
+| **Presupuesto de cuota cuantificado** en E-014 (cuánta holgura es "suficiente") | La **medición del consumo real** de una sesión típica | Es juicio del orquestador; E-014 rige igual, sin número |
+
+> Estos tres se registran también en la tabla de piezas ausentes de `methodology.md` §0.3, que es el
+> inventario único: si una pieza aparece aquí y allá, allá manda.

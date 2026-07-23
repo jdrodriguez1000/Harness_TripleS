@@ -7,33 +7,48 @@
 
 ## Estado actual
 
-T-010 quedó resuelta: `methodology.md` recibió una revisión de fondo en tres pasos. (1) El
-usuario acotó el harness a trabajar exclusivamente proyectos de desarrollo de software,
-recortando toda referencia a Ciencia de datos/ML preservando la distinción entre "producto
-ML" (se fue) y "agente LLM probabilístico" (tesis central del harness, se quedó). (2) Se
-introdujo un marcado de tres estados —normativo (sin marca), `[DIFERIDO]`, `[PENDIENTE]`—
-en una nueva §0.3 con el núcleo normativo y una tabla de 8 piezas de infraestructura
-ausentes. (3) El archivo se dividió en `methodology.md` (607 líneas, el proceso) y el nuevo
-`src/soda/templates/_guideline/agents-and-evaluation.md` (483 líneas, agentes y evaluación),
-sin renumerar ninguna sección: los números quedaron únicos globalmente entre ambos archivos
-y ninguna referencia cruzada se rompió (verificado por script). Verificado con 57 tests
-(`pytest`, `ruff` limpio) y wheel construido con los tres `.md` presentes. `soda init` sigue
-funcional y globalmente instalado desde la sesión anterior; la capa de proveedores
-(`Provider` + `ClaudeCLIProvider`) sigue funcionando de extremo a extremo. Los tres
-documentos de `_guideline/` viajan dentro del paquete instalado pero ningún comando los
-siembra todavía en el proyecto destino (T-009, bloqueada por D-012). Detectada tarea nueva
-T-011: `principles.md` §5 usa un vocabulario de estado distinto del recién introducido en
-§0.3 y hay que unificarlos. No hay agentes propios de `soda` todavía.
+T-009 y T-011 quedaron resueltas. T-009: `soda init` ahora siembra en una sola pasada tanto
+`_persistence/` (memoria) como `_guideline/` (doctrina), reportando cada carpeta en su
+propio bloque; el usuario decidió ampliar D-012 (enmendada en D-020) en vez de usar un
+subcomando o flag aparte. Se introdujo una distinción deliberada al reportar (D-021): la
+memoria existente siempre se salta sin comparar (`SALTADO`), pero un documento de
+`_guideline/` que existe y no coincide con el del paquete se reporta como `DIFIERE` en vez
+de esconderse bajo `SALTADO`, para que un destino con una versión vieja de `soda` no se
+quede con doctrina desactualizada en silencio; ninguna de las dos carpetas se toca sin
+`--force` (D-011 intacto). T-011: unificada la taxonomía de estado entre `principles.md` §5
+(que usaba "gatillo de adopción") y `methodology.md` §0.3 (los tres estados normativo /
+`[DIFERIDO]` / `[PENDIENTE]` de D-018); ahora `principles.md` §0.5 importa esa taxonomía por
+referencia sin redefinirla, y §5 quedó marcada `[PENDIENTE]` en tabla. Verificado con 82
+tests (`pytest`, `ruff` limpio, subida desde 57), wheel con los tres `.md` de `_guideline/`
+más los seis de `_persistence/`, y ejecución real de `soda init` en proyecto de prueba
+(siembra inicial y detección de desfase tras corromper un archivo). El `soda` global (pipx
+editable) ya trae ambos cambios. Detectada y registrada tarea nueva T-012: implementar
+`sesion-starter`, acordada como siguiente con el usuario. No hay agentes propios de `soda`
+todavía.
 
 ## Qué sigue
 
-- [T-009](tasks.md#t-009--soda-init-debe-sembrar-_guideline-en-el-proyecto-destino) — `soda init` debe sembrar `_guideline/` en el proyecto destino; tal como está planteada contradice D-012, hay que revisar esa decisión primero (opciones: ampliar D-012, subcomando `soda guideline`, o flag `--with-guideline`; recomendada la primera). Es la tarea recomendada para la próxima sesión: convierte trabajo ya hecho (1.474 líneas de `_guideline/`) en valor entregado.
-- [T-011](tasks.md#t-011--unificar-taxonomía-de-estado-entre-principlesmd-5-y-el-03-nuevo) — Unificar la taxonomía de estado entre `principles.md` §5 y el §0.3 de `agents-and-evaluation.md`
-- Queda sobre la mesa, sin comprometer, la alternativa de implementar `CodexCLIProvider` antes de avanzar con agentes.
-- Queda como decisión de diseño abierta, no como edición pendiente: si `agents-and-evaluation.md` §5 (~12 arquetipos de agente) describe el destino o especifica ya lo que se construye; su urgencia bajó al quedar marcada `[PENDIENTE]`, pero el punto de fondo sigue sin resolver.
-- Sin tareas registradas todavía para el diseño de los agentes propios del harness (`sesion-starter`, `agent-worker`, `sesion-closer`); depende de que T-009/T-011 avancen o se decida posponerlas.
+- [T-012](tasks.md#t-012--implementar-sesion-starter-como-agente-de-soda) — Implementar `sesion-starter` como agente de `soda`, acordada con el usuario como la siguiente tarea. Es la de menor riesgo de los agentes propios porque ya existe un prototipo probado (`harness-starter` + skill `session-startup` de este mismo repo, ejercitado cinco sesiones); sería también el primer consumidor real de `Provider`/`ClaudeCLIProvider`. Precondición acotada: resolver la pregunta de diseño de `agents-and-evaluation.md` §5 solo para este agente, no para los doce arquetipos.
+- Descartada explícitamente como alternativa a T-012: implementar `CodexCLIProvider` antes, porque añadir un segundo proveedor sin consumidor del primero profundiza código sin uso.
+- Queda como decisión de diseño abierta, no como edición pendiente: si `agents-and-evaluation.md` §5 (~12 arquetipos de agente) describe el destino o especifica ya lo que se construye; para T-012 basta resolverla para un solo agente.
+- Sin tareas registradas todavía para `agent-worker` ni `sesion-closer`; depende de cómo avance T-012.
 
 ## Historial de hitos
+
+### 2026-07-23 — `soda init` siembra `_guideline/` y taxonomía de estado unificada (T-009, T-011)
+
+`soda init` pasó de sembrar solo memoria a sembrar memoria y doctrina en una sola pasada:
+`init_guideline()` nueva, junto con `guideline_root()`/`read_guideline_template()` en
+`templates/__init__.py`, apoyadas en helpers comunes factorizados de la implementación de
+`_persistence` (D-020, enmienda a D-012). Introducida la distinción `SALTADO`/`DIFIERE` al
+reportar archivos existentes (D-021): la memoria diverge por diseño y se salta sin
+comparar, la doctrina la posee la versión instalada del paquete y un desfase se reporta en
+vez de esconderse. `principles.md` §5 y `methodology.md` §0.3 quedaron con un solo
+vocabulario de estado (normativo / `[DIFERIDO]` / `[PENDIENTE]`, D-018), citado por
+referencia desde una nueva §0.5 en `principles.md`. Suite subió de 57 a 82 tests, `ruff`
+limpio, wheel verificado y ejecución real confirmando siembra y detección de desfase.
+Detectada y registrada T-012 (`sesion-starter`), acordada con el usuario como siguiente
+tarea.
 
 ### 2026-07-23 — Revisión de fondo de `methodology.md`: alcance exclusivo de software, marcado normativo/diferido/pendiente y división del archivo (T-010)
 

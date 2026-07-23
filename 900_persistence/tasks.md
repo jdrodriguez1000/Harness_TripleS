@@ -12,9 +12,10 @@
 | [T-006](#t-006--habilitar-entry-point-e-instalar-con-pipx) | Habilitar el entry point e instalar con pipx | Implementada |
 | [T-007](#t-007--actualizar-905_guidelineprinciplesmd-antes-de-escribir-el-primer-agente) | Actualizar `905_guideline/principles.md` antes de escribir el primer agente | Implementada |
 | [T-008](#t-008--mudar-905_guideline-a-srcsodatemplates_guideline) | Mudar `905_guideline/` a `src/soda/templates/_guideline/` | Implementada |
-| [T-009](#t-009--soda-init-debe-sembrar-_guideline-en-el-proyecto-destino) | `soda init` debe sembrar `_guideline/` en el proyecto destino | No implementada |
+| [T-009](#t-009--soda-init-debe-sembrar-_guideline-en-el-proyecto-destino) | `soda init` debe sembrar `_guideline/` en el proyecto destino | Implementada |
 | [T-010](#t-010--revisión-de-fondo-de-methodologymd) | Revisión de fondo de `methodology.md` | Implementada |
-| [T-011](#t-011--unificar-taxonomía-de-estado-entre-principlesmd-5-y-el-03-nuevo) | Unificar taxonomía de estado entre `principles.md` §5 y el §0.3 nuevo | No implementada |
+| [T-011](#t-011--unificar-taxonomía-de-estado-entre-principlesmd-5-y-el-03-nuevo) | Unificar taxonomía de estado entre `principles.md` §5 y el §0.3 nuevo | Implementada |
+| [T-012](#t-012--implementar-sesion-starter-como-agente-de-soda) | Implementar `sesion-starter` como agente de `soda` | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -79,10 +80,10 @@
 
 ### T-009 — `soda init` debe sembrar `_guideline/` en el proyecto destino
 
-- **Estado:** No implementada
+- **Estado:** Implementada
 - **Fecha:** 2026-07-23
-- **Descripción:** Hoy `principles.md` y `methodology.md` viajan dentro del paquete instalado (verificado con el wheel, T-008) pero ningún comando los coloca en el proyecto destino: son carga muerta. Falta un accesor en `src/soda/templates/__init__.py` análogo a `persistence_root()`, y decidir si lo hace `init` o un subcomando aparte.
-- **Pendiente:** Todo el diseño e implementación. Nota importante: esta tarea, tal como está planteada, contradice D-012 (`init` solo siembra los seis archivos de memoria); habría que revisar esa decisión o superarla con una decisión nueva antes de implementar.
+- **Descripción:** Hoy `principles.md` y `methodology.md` (y desde T-010, también `agents-and-evaluation.md`) viajan dentro del paquete instalado (verificado con el wheel, T-008) pero ningún comando los coloca en el proyecto destino: eran carga muerta. Faltaba un accesor en `src/soda/templates/__init__.py` análogo a `persistence_root()`, y decidir si lo hace `init` o un subcomando aparte. El usuario decidió ampliar D-012 (enmendada, ver D-020).
+- **Resultado:** `src/soda/templates/__init__.py`: añadidos `GUIDELINE_DIRNAME` (`"_guideline"`), `GUIDELINE_FILENAMES` (`principles.md`, `methodology.md`, `agents-and-evaluation.md`, en orden de lectura), `guideline_root()` y `read_guideline_template()`, simétricos a los de `_persistence`; nuevo helper privado `_leer()` que unifica la validación de nombre desconocido. `src/soda/cli.py`: nueva función `init_guideline()` junto a `init_persistence()`, ambas apoyadas en un `_sembrar()` común parametrizado; nueva constante de acción `DIFIERE = "difiere, saltado"` (ver D-021); `init` siembra las dos carpetas en una sola pasada y las reporta en dos bloques independientes, cada uno con su "Destino:" y su resumen. `README.md` actualizado (estado actual, sección de `soda init` con ambas carpetas, nueva sección "Los tres documentos normativos", árbol de estructura). Verificado: la suite pasó de 57 a 82 tests (25 nuevos entre `tests/test_templates.py` y `tests/test_cli.py`: siembra, idempotencia, relleno parcial, `--force`, C-002 vía chdir, detección de desfase, y un test explícito de que la memoria nunca se marca `DIFIERE`), todos en verde; `ruff check` limpio; wheel construido e inspeccionado (3 `.md` de `_guideline/` + 6 de `_persistence/` presentes); ejecución real en proyecto de prueba: primera pasada siembra 6+3, segunda pasada tras corromper `methodology.md` reporta `difiere, saltado` sin tocar el archivo y sugiere `--force`; el `soda` global (pipx editable) ya trae el cambio.
 
 ### T-010 — Revisión de fondo de `methodology.md`
 
@@ -94,7 +95,14 @@
 
 ### T-011 — Unificar taxonomía de estado entre `principles.md` §5 y el §0.3 nuevo
 
-- **Estado:** No implementada
+- **Estado:** Implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** `principles.md` §5 ("Pendientes declarados") etiqueta sus tres ítems (motor de traza, umbral de ventana de contexto, cuota cuantificada) con "Gatillo de adopción", pero los tres requieren infraestructura ausente y no una decisión reversible sobre evidencia. En la taxonomía de tres estados introducida en `agents-and-evaluation.md` §0.3 (T-010, D-018), eso corresponde a `[PENDIENTE]`, no a `[DIFERIDO]`. Hay dos vocabularios de estado conviviendo entre dos documentos que se citan mutuamente.
-- **Pendiente:** Decidir si `principles.md` §5 adopta las mismas tres marcas de §0.3 (y remapear sus tres ítems a `[PENDIENTE]`) o si se documenta explícitamente por qué usa un vocabulario distinto; aplicar la elección y verificar que ambos documentos queden coherentes entre sí.
+- **Resultado:** `principles.md` §5 reescrita de lista con "Gatillo de adopción" a tabla marcada `[PENDIENTE]` en el encabezado, con columnas "Pieza que falta" / "Qué se hace mientras tanto"; declara explícitamente que ninguno de los tres ítems es `[DIFERIDO]` (se revierten entregando la pieza, no con evidencia). Nueva §0.5 en `principles.md`: importa la taxonomía de tres estados desde `methodology.md` §0.3 por referencia, sin redefinirla; registra que hoy `principles.md` no tiene ningún ítem `[DIFERIDO]`; incluye advertencia sobre una ambigüedad detectada de paso (`principles.md` §0.3 es "Convención de códigos" mientras que `methodology.md` §0.3 es "Estado de aplicación", así que al citar §0.3 entre archivos hay que nombrar el archivo). No se renumeró nada (D-015, D-019). §0.4 de `principles.md` corregida: donde decía "se declara en §5 con su gatillo de adopción" ahora dice `[PENDIENTE]`. `methodology.md` §0.3: pasa de "Toda regla de este documento" a "Toda regla de los tres documentos de `_guideline/`" y se declara definición única de la taxonomía; su tabla de piezas ausentes pasa de 8 a 10 filas, absorbiendo la medición de ocupación de contexto (E-002) y la medición del consumo de cuota (E-014), que antes solo vivían en `principles.md` §5; la fila del motor de traza cita también `principles.md` §5. Verificado: 82 tests + `ruff check` limpios; cero apariciones huérfanas de "gatillo de adopción" (las 5 restantes cuelgan de un `[DIFERIDO]` legítimo); script ad hoc de validación de referencias cruzadas: 43 secciones definidas entre los tres archivos, 0 referencias rotas reales (7 marcadas por el script eran falsos positivos de su propia regex, y la redacción de la única línea nueva propia se ajustó para quedar inequívoca). Tamaños finales: `principles.md` 410 líneas, `methodology.md` 611, `agents-and-evaluation.md` 482.
+
+### T-012 — Implementar `sesion-starter` como agente de `soda`
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Con T-009 cerrada, el proyecto destino ya recibe memoria (`_persistence/`) y doctrina (`_guideline/`), pero nada las lee: el paquete siembra y se va. `sesion-starter` cierra ese lazo. Es el de menor riesgo de los agentes propios de `soda` porque ya existe un prototipo probado: el agente `harness-starter` de este repo con su skill `session-startup`, ejercitado durante cinco sesiones; la especificación se porta, no se inventa. Sería además el primer consumidor real de la capa de proveedores (`Provider` + `ClaudeCLIProvider`, T-002/T-003), que hoy funciona pero nadie llama.
+- **Pendiente:** Todo el diseño e implementación. Precondición acotada: la pregunta de diseño abierta sobre `agents-and-evaluation.md` §5 (si los ~12 arquetipos de agente describen el destino o especifican lo que se construye) hay que resolverla solo para este agente, no para los doce. Descartada explícitamente como alternativa de "siguiente tarea": implementar `CodexCLIProvider` primero, porque añadir un segundo proveedor cuando el primero todavía no tiene consumidor profundiza código sin uso.

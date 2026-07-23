@@ -16,7 +16,8 @@ El alcance completo del proyecto está en [`idea.md`](idea.md).
 
 En construcción. Lo que ya funciona:
 
-- **`soda init`** — siembra la memoria (`_persistence/`) en un proyecto destino.
+- **`soda init`** — siembra la memoria (`_persistence/`) y la guía normativa (`_guideline/`)
+  en un proyecto destino.
 - **Capa de proveedores** — `Provider` (abstracto) y `ClaudeCLIProvider`, que invoca el CLI
   `claude` por subproceso. Todavía no hay agentes que la usen.
 
@@ -93,9 +94,10 @@ pipx uninstall soda
 
 ## Comandos
 
-### `soda init` — sembrar la memoria de un proyecto
+### `soda init` — sembrar la memoria y la guía de un proyecto
 
-Crea `_persistence/` con los seis archivos de memoria vacíos.
+Crea dos carpetas en el proyecto destino: `_persistence/` con los seis archivos de memoria
+vacíos, y `_guideline/` con los tres documentos normativos que trae esta versión de `soda`.
 
 ```bash
 soda init                    # en el directorio actual
@@ -105,8 +107,8 @@ soda init --force            # reemplaza los archivos que ya existan
 
 | Argumento | |
 |---|---|
-| `project_root` | Raíz del proyecto destino. Por defecto, el directorio actual. Debe existir: `init` siembra memoria dentro de un proyecto, no crea el proyecto. |
-| `--force` | Sobrescribe los archivos existentes. **Destruye memoria acumulada.** |
+| `project_root` | Raíz del proyecto destino. Por defecto, el directorio actual. Debe existir: `init` siembra dentro de un proyecto, no crea el proyecto. |
+| `--force` | Sobrescribe los archivos existentes en ambas carpetas. **Destruye memoria acumulada.** |
 
 | Código de salida | |
 |---|---|
@@ -116,6 +118,13 @@ soda init --force            # reemplaza los archivos que ya existan
 **Es idempotente y no destructivo.** Un archivo que ya existe se salta; repetir `init` solo
 completa lo que falte. Ningún archivo con contenido se pierde sin que escribas `--force`, y
 ni siquiera entonces en silencio: la salida nombra cada archivo reemplazado.
+
+Las dos carpetas se siembran igual pero no significan lo mismo, y `init` las reporta
+distinto. La memoria es del proyecto destino: que diverja de la plantilla es lo esperado, así
+que un archivo existente se salta sin más. La guía la posee la versión instalada de `soda`:
+si un documento existe pero no coincide con el del paquete —copia vieja de una actualización
+anterior, o editada a mano— se reporta como `difiere` en vez de esconderse bajo `saltado`.
+Tampoco se toca sin `--force`; solo deja de ser silencioso.
 
 Ejemplo:
 
@@ -132,6 +141,14 @@ Destino: C:\Users\tu-usuario\mi-proyecto\_persistence
   creado           assumptions.md
 
 6 creados.
+
+Destino: C:\Users\tu-usuario\mi-proyecto\_guideline
+
+  creado           principles.md
+  creado           methodology.md
+  creado           agents-and-evaluation.md
+
+3 creados.
 ```
 
 ### Los seis archivos de memoria
@@ -153,6 +170,21 @@ dígitos, permanente, y nunca se reutiliza ni se renumera.
 
 `_persistence/` **debe versionarse en Git**: es el registro de estado entre sesiones. No lo
 añadas al `.gitignore`.
+
+### Los tres documentos normativos
+
+`init` los siembra ya escritos: son producto, no plantillas a llenar. Definen cómo se
+comportan los agentes y cómo se construye el proyecto.
+
+| Archivo | Contenido |
+|---|---|
+| `principles.md` | Principios (`P-`), requisitos (`E-`) y normas (`NC-`) del comportamiento de los agentes |
+| `methodology.md` | Proceso de construcción: espina del incremento, ciclo, madurez, gates, persistencia |
+| `agents-and-evaluation.md` | Arquetipos de agente, evaluación del producto y observabilidad |
+
+No los edites en el proyecto destino: la copia autorizada viaja dentro de `soda` y una
+edición local queda marcada como `difiere` en el siguiente `init`, sin forma de reconciliarse
+salvo sobrescribiéndola.
 
 ---
 
@@ -193,7 +225,7 @@ src/soda/            El producto: lo que se instala y distribuye
   providers/           Implementaciones concretas (ClaudeCLIProvider)
   templates/           Plantillas que viajan al proyecto destino
     _persistence/        Los seis archivos de memoria (los siembra `soda init`)
-    _guideline/          Comportamiento de los agentes y metodología de construcción
+    _guideline/          Los tres documentos normativos (los siembra `soda init`)
       principles.md        Principios (P), requisitos (E) y normas (NC) del comportamiento
       methodology.md       Proceso de construcción: espina, ciclo, madurez, gates, persistencia
       agents-and-evaluation.md  Arquetipos de agente, evaluación del producto y observabilidad

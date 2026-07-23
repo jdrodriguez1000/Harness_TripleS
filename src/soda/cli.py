@@ -1,31 +1,95 @@
 """CLI del harness: un solo comando `soda` con subcomandos (D-002).
 
-Por ahora expone `init`, que siembra la plantilla de `_persistence` en un
-proyecto destino.
+Por ahora expone `init`, que siembra en un proyecto destino las dos plantillas
+del paquete: `_persistence/` (memoria vacía) y `_guideline/` (los documentos
+normativos, que son producto — D-014).
+
+Las dos se siembran, pero no se tratan igual, porque no son la misma clase de
+archivo. La memoria es del proyecto destino: si ya existe, se salta y punto —
+sobrescribirla borraría trabajo. La guía es del paquete: si ya existe y es
+idéntica no hay nada que decir, pero si difiere de la versión instalada eso es
+información que el usuario necesita (típicamente, una copia vieja de una
+actualización anterior de `soda`). Tampoco se toca sin `--force`, pero se
+reporta como DIFIERE en vez de esconderse bajo "saltado".
 
 Sobre C-002: la restricción exige que toda función del harness reciba
-`project_root` de forma explícita, y así es —`init_persistence` lo pide
-siempre. El valor por defecto (el directorio actual) se resuelve aquí, en la
-frontera de la CLI, y se convierte en ruta absoluta antes de llamar a nada. La
-comodidad vive en la interfaz; el código de dentro sigue siendo explícito.
+`project_root` de forma explícita, y así es —`init_persistence` e
+`init_guideline` lo piden siempre. El valor por defecto (el directorio actual)
+se resuelve aquí, en la frontera de la CLI, y se convierte en ruta absoluta
+antes de llamar a nada. La comodidad vive en la interfaz; el código de dentro
+sigue siendo explícito.
 """
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from soda.templates import (
+    GUIDELINE_DIRNAME,
+    GUIDELINE_FILENAMES,
     PERSISTENCE_DIRNAME,
     PERSISTENCE_FILENAMES,
+    read_guideline_template,
     read_persistence_template,
 )
 
-__all__ = ["CREADO", "SALTADO", "SOBRESCRITO", "init_persistence", "main"]
+__all__ = [
+    "CREADO",
+    "DIFIERE",
+    "SALTADO",
+    "SOBRESCRITO",
+    "init_guideline",
+    "init_persistence",
+    "main",
+]
 
 CREADO = "creado"
 SALTADO = "existe, saltado"
 SOBRESCRITO = "sobrescrito"
+DIFIERE = "difiere, saltado"
+
+
+def _exigir_directorio(project_root: Path) -> None:
+    if not project_root.is_dir():
+        raise NotADirectoryError(
+            f"'{project_root}' no existe o no es un directorio. "
+            "`init` siembra la memoria dentro de un proyecto ya existente; "
+            "no crea el proyecto."
+        )
+
+
+def _sembrar(
+    project_root: Path,
+    dirname: str,
+    filenames: Sequence[str],
+    leer_plantilla: Callable[[str], str],
+    force: bool,
+    marcar_diferencias: bool,
+) -> list[tuple[str, str]]:
+    """Copia `filenames` a `project_root / dirname` sin destruir nada sin `force`."""
+    _exigir_directorio(project_root)
+
+    destino = project_root / dirname
+    destino.mkdir(exist_ok=True)
+
+    resultados: list[tuple[str, str]] = []
+    for nombre in filenames:
+        ruta = destino / nombre
+        plantilla = leer_plantilla(nombre)
+        ya_estaba = ruta.exists()
+
+        if ya_estaba and not force:
+            difiere = (
+                marcar_diferencias and ruta.read_text(encoding="utf-8") != plantilla
+            )
+            resultados.append((nombre, DIFIERE if difiere else SALTADO))
+            continue
+
+        ruta.write_text(plantilla, encoding="utf-8")
+        resultados.append((nombre, SOBRESCRITO if ya_estaba else CREADO))
+
+    return resultados
 
 
 def init_persistence(project_root: Path, force: bool = False) -> list[tuple[str, str]]:
@@ -34,6 +98,10 @@ def init_persistence(project_root: Path, force: bool = False) -> list[tuple[str,
     Nunca destruye contenido: un archivo que ya existe se salta, salvo que
     `force` sea verdadero. Es idempotente — repetir la llamada solo completa lo
     que falte.
+
+    Un archivo de memoria existente se reporta siempre como saltado, sin
+    compararlo con la plantilla: que difiera es lo normal y lo deseable, porque
+    la memoria la escribe el proyecto destino.
 
     Args:
         project_root: Raíz del proyecto destino. Debe existir y ser directorio.
@@ -46,29 +114,45 @@ def init_persistence(project_root: Path, force: bool = False) -> list[tuple[str,
         NotADirectoryError: Si `project_root` no existe o no es un directorio.
         OSError: Si no se pudo crear o escribir en el destino.
     """
-    if not project_root.is_dir():
-        raise NotADirectoryError(
-            f"'{project_root}' no existe o no es un directorio. "
-            "`init` siembra la memoria dentro de un proyecto ya existente; "
-            "no crea el proyecto."
-        )
+    return _sembrar(
+        project_root,
+        PERSISTENCE_DIRNAME,
+        PERSISTENCE_FILENAMES,
+        read_persistence_template,
+        force=force,
+        marcar_diferencias=False,
+    )
 
-    destino = project_root / PERSISTENCE_DIRNAME
-    destino.mkdir(exist_ok=True)
 
-    resultados: list[tuple[str, str]] = []
-    for nombre in PERSISTENCE_FILENAMES:
-        ruta = destino / nombre
-        ya_estaba = ruta.exists()
+def init_guideline(project_root: Path, force: bool = False) -> list[tuple[str, str]]:
+    """Siembra los documentos normativos (`_guideline`) dentro de `project_root`.
 
-        if ya_estaba and not force:
-            resultados.append((nombre, SALTADO))
-            continue
+    Mismas garantías que `init_persistence` —no destruye sin `force`, es
+    idempotente— con una diferencia: un documento que ya existe pero no coincide
+    con el que trae el paquete se reporta como `DIFIERE`, no como `SALTADO`. La
+    guía la posee la versión instalada de `soda`, así que una copia divergente
+    en el destino es casi siempre una copia vieja, y saltarla en silencio la
+    dejaría desactualizada para siempre.
 
-        ruta.write_text(read_persistence_template(nombre), encoding="utf-8")
-        resultados.append((nombre, SOBRESCRITO if ya_estaba else CREADO))
+    Args:
+        project_root: Raíz del proyecto destino. Debe existir y ser directorio.
+        force: Si es verdadero, sobrescribe los documentos existentes.
 
-    return resultados
+    Returns:
+        Una lista de `(nombre de archivo, acción)` en el orden canónico.
+
+    Raises:
+        NotADirectoryError: Si `project_root` no existe o no es un directorio.
+        OSError: Si no se pudo crear o escribir en el destino.
+    """
+    return _sembrar(
+        project_root,
+        GUIDELINE_DIRNAME,
+        GUIDELINE_FILENAMES,
+        read_guideline_template,
+        force=force,
+        marcar_diferencias=True,
+    )
 
 
 def _resumir(resultados: Sequence[tuple[str, str]]) -> str:
@@ -82,7 +166,7 @@ def _resumir(resultados: Sequence[tuple[str, str]]) -> str:
         if cuantos:
             partes.append(f"{cuantos} {singular if cuantos == 1 else plural}")
 
-    saltados = sum(1 for _, hecho in resultados if hecho == SALTADO)
+    saltados = sum(1 for _, hecho in resultados if hecho in (SALTADO, DIFIERE))
     if saltados:
         partes.append(f"{saltados} sin tocar")
 
@@ -101,7 +185,10 @@ def _ejecutar_init(args: argparse.Namespace) -> int:
     project_root = Path(args.project_root).resolve()
 
     try:
-        resultados = init_persistence(project_root, force=args.force)
+        bloques = [
+            (PERSISTENCE_DIRNAME, init_persistence(project_root, force=args.force)),
+            (GUIDELINE_DIRNAME, init_guideline(project_root, force=args.force)),
+        ]
     except NotADirectoryError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -109,14 +196,24 @@ def _ejecutar_init(args: argparse.Namespace) -> int:
         print(f"Error: no se pudo escribir en '{project_root}': {exc}", file=sys.stderr)
         return 1
 
-    print(f"Destino: {project_root / PERSISTENCE_DIRNAME}")
-    print()
-    for nombre, accion in resultados:
-        print(f"  {accion:<16} {nombre}")
-    print()
-    print(_resumir(resultados) + ".")
+    for dirname, resultados in bloques:
+        print(f"Destino: {project_root / dirname}")
+        print()
+        for nombre, accion in resultados:
+            print(f"  {accion:<16} {nombre}")
+        print()
+        print(_resumir(resultados) + ".")
+        print()
 
-    if any(accion == SALTADO for _, accion in resultados):
+    todas = [accion for _, resultados in bloques for _, accion in resultados]
+
+    if DIFIERE in todas:
+        print(
+            f"Algún documento de {GUIDELINE_DIRNAME}/ no coincide con el que trae "
+            "esta versión de soda: es una copia editada o de una versión anterior."
+        )
+
+    if SALTADO in todas or DIFIERE in todas:
         print("Usa --force para reemplazar los archivos existentes.")
 
     return 0
@@ -131,8 +228,11 @@ def construir_parser() -> argparse.ArgumentParser:
 
     init = subcomandos.add_parser(
         "init",
-        help="Siembra la memoria (`_persistence`) en un proyecto destino.",
-        description="Crea `_persistence/` con los seis archivos de memoria vacíos.",
+        help="Siembra la memoria y la guía normativa en un proyecto destino.",
+        description=(
+            "Crea `_persistence/` con los seis archivos de memoria vacíos y "
+            "`_guideline/` con los documentos normativos que trae soda."
+        ),
     )
     init.add_argument(
         "project_root",

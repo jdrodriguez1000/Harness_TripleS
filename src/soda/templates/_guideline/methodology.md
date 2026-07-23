@@ -126,7 +126,9 @@ presente lo que **rige ahora** y lo que **está por llegar** es un fallo con con
 agente lee una regla, asume que puede cumplirla, y al no encontrar la pieza que necesita **inventa un
 sustituto o la ignora en silencio** — y nadie se entera.
 
-**Toda regla de este documento tiene uno de tres estados:**
+**Toda regla de los tres documentos de `_guideline/` tiene uno de tres estados.** Esta sección es la
+definición única de la taxonomía: `agents-and-evaluation.md` y `principles.md` §0.5 la importan por
+referencia y no la redefinen.
 
 | Marca | Significa | Qué hace el agente |
 |---|---|---|
@@ -145,8 +147,9 @@ sustituto o la ignora en silencio** — y nadie se entera.
 disciplina de alcance (§4), **Single Writer** y el filesystem como fuente de verdad (§7), la **regla de
 procedencia** (§0.2) y **mínima complejidad** (§9).
 
-**Piezas que este documento asume y que hoy no se entregan.** Todo lo marcado `[PENDIENTE]` cuelga de
-esta tabla, y la última columna es lo que se hace mientras tanto:
+**Piezas que `_guideline/` asume y que hoy no se entregan.** Es el **inventario único**: todo lo
+marcado `[PENDIENTE]` en cualquiera de los tres documentos cuelga de esta tabla, y la última columna es
+lo que se hace mientras tanto:
 
 | Pieza ausente | La invocan | Qué se hace sin ella |
 |---|---|---|
@@ -154,10 +157,12 @@ esta tabla, y la última columna es lo que se hace mientras tanto:
 | `_context/project.yaml` | §0.2, §5.1 | Los metadatos de proyecto se escriben `<no declarado>` — **nunca** se deducen del brief (§0.2) |
 | `_templates/` (plantillas de artefacto, `state_temp.yaml`, `trace_temp.md`) | §5.1, §7.1, §7.2, §10.1 | No hay contrato de forma verificable por diff: el agente estructura según la spec y **lo hace constar**; de §5.1 no aplican los pasos 1–2, sí los pasos 0, 3 y 4 |
 | `_increments/<id>/state.yaml` | §7.1 | El estado del incremento se lleva en `_persistence/tasks.md`, en narrativa |
-| **Motor de traza** + `_trace/trace.md` | §7.2, §10 | La conformidad **no es auditable**: manda el gate humano, y ningún check del tipo «¿leyó antes de escribir?» puede afirmarse |
+| **Motor de traza** + `_trace/trace.md` | §7.2, §10, `principles.md` §5 | La conformidad **no es auditable**: manda el gate humano, y ningún check del tipo «¿leyó antes de escribir?» puede afirmarse |
 | `_tools/conformance.sh` | §10.2 | Igual que la anterior |
 | `_guideline/git-protocol.md` | §7, Apéndice | Rige la convención de commits del Apéndice; el procedimiento detallado lo decide la sesión |
 | **Flota de arquetipos** (§5) | §3, §5 | La sesión principal ejecuta los 11 pasos con subagentes ad hoc, **respetando independencia, contexto fresco y gates** — normativos aunque el arquetipo con nombre propio no exista |
+| **Medición de ocupación de contexto** expuesta por el arnés | `principles.md` §5 (E-002) | El disparador de compactación se evalúa por señales externas; no hay umbral numérico y el corte lo decide el orquestador o el humano |
+| **Medición del consumo de cuota** de una sesión típica | `principles.md` §5 (E-014) | El presupuesto de sesión rige sin número: cuánta holgura es "suficiente" es juicio del orquestador |
 
 > **Honestidad de estado.** Que una pieza esté `[PENDIENTE]` no relaja la regla que la acompaña: relaja
 > su **verificabilidad**. Sin traza no se puede *demostrar* que se siguió el procedimiento, pero

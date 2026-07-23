@@ -1,8 +1,15 @@
 """Plantillas que `soda init` siembra en un proyecto destino.
 
-La plantilla de `_persistence/` es la forma vacía de los seis archivos de
-memoria: la misma estructura que el harness usa para su propia construcción,
-sin contenido.
+Son dos, y no significan lo mismo:
+
+- `_persistence/`: la forma vacía de los seis archivos de memoria, la misma
+  estructura que el harness usa para su propia construcción, sin contenido. El
+  proyecto destino la llena; es suya.
+- `_guideline/`: los documentos normativos (`principles.md`, `methodology.md`,
+  `agents-and-evaluation.md`), que son producto y viajan con `soda` (D-014). El
+  destino los lee, no los escribe: su dueño es la versión instalada del paquete.
+
+Esa asimetría manda en cómo `init` trata cada una (ver `soda.cli`).
 
 El acceso va por `importlib.resources` y no por `Path(__file__).parent` porque
 el paquete puede quedar instalado comprimido (zip import) o en una ruta que no
@@ -13,9 +20,13 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 
 __all__ = [
+    "GUIDELINE_DIRNAME",
+    "GUIDELINE_FILENAMES",
     "PERSISTENCE_DIRNAME",
     "PERSISTENCE_FILENAMES",
+    "guideline_root",
     "persistence_root",
+    "read_guideline_template",
     "read_persistence_template",
 ]
 
@@ -31,10 +42,32 @@ PERSISTENCE_FILENAMES: tuple[str, ...] = (
     "assumptions.md",
 )
 
+GUIDELINE_DIRNAME = "_guideline"
+
+#: Los documentos normativos, en orden de lectura (los principios primero).
+GUIDELINE_FILENAMES: tuple[str, ...] = (
+    "principles.md",
+    "methodology.md",
+    "agents-and-evaluation.md",
+)
+
+
+def _leer(raiz: Traversable, nombre: str, conocidas: tuple[str, ...], que: str) -> str:
+    if nombre not in conocidas:
+        raise KeyError(
+            f"'{nombre}' no es una plantilla de {que}. Conocidas: {', '.join(conocidas)}"
+        )
+    return (raiz / nombre).read_text(encoding="utf-8")
+
 
 def persistence_root() -> Traversable:
     """Devuelve la raíz de la plantilla `_persistence` dentro del paquete."""
     return files(__package__) / PERSISTENCE_DIRNAME
+
+
+def guideline_root() -> Traversable:
+    """Devuelve la raíz de la plantilla `_guideline` dentro del paquete."""
+    return files(__package__) / GUIDELINE_DIRNAME
 
 
 def read_persistence_template(nombre: str) -> str:
@@ -49,9 +82,19 @@ def read_persistence_template(nombre: str) -> str:
     Raises:
         KeyError: Si `nombre` no es una plantilla conocida.
     """
-    if nombre not in PERSISTENCE_FILENAMES:
-        conocidas = ", ".join(PERSISTENCE_FILENAMES)
-        raise KeyError(
-            f"'{nombre}' no es una plantilla de _persistence. Conocidas: {conocidas}"
-        )
-    return (persistence_root() / nombre).read_text(encoding="utf-8")
+    return _leer(persistence_root(), nombre, PERSISTENCE_FILENAMES, PERSISTENCE_DIRNAME)
+
+
+def read_guideline_template(nombre: str) -> str:
+    """Devuelve el contenido UTF-8 de un documento de `_guideline`.
+
+    Args:
+        nombre: Nombre del archivo, uno de `GUIDELINE_FILENAMES`.
+
+    Returns:
+        El contenido del archivo como texto.
+
+    Raises:
+        KeyError: Si `nombre` no es un documento conocido.
+    """
+    return _leer(guideline_root(), nombre, GUIDELINE_FILENAMES, GUIDELINE_DIRNAME)

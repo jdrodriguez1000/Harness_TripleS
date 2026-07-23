@@ -23,6 +23,8 @@
 | [D-017](#d-017--el-harness-trabaja-exclusivamente-proyectos-de-desarrollo-de-software) | El harness trabaja exclusivamente proyectos de desarrollo de software | 2026-07-23 |
 | [D-018](#d-018--tres-estados-de-aplicación-normativo-diferido-y-pendiente-no-dos) | Tres estados de aplicación (normativo, `[DIFERIDO]` y `[PENDIENTE]`), no dos | 2026-07-23 |
 | [D-019](#d-019--dividir-methodologymd-sin-renumerar-secciones) | Dividir `methodology.md` sin renumerar secciones | 2026-07-23 |
+| [D-020](#d-020--enmienda-a-d-012-init-también-siembra-_guideline) | Enmienda a D-012: `init` también siembra `_guideline/` | 2026-07-23 |
+| [D-021](#d-021--_persistence-y-_guideline-se-siembran-igual-pero-se-reportan-distinto) | `_persistence/` y `_guideline/` se siembran igual pero se reportan distinto | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -120,7 +122,7 @@
 - **Contexto:** Definir el alcance exacto de lo que `soda init` toca en el proyecto destino.
 - **Decisión:** `init` siembra únicamente los seis archivos de memoria en `_persistence/`; no crea `CLAUDE.md` en el destino ni modifica `.gitignore`.
 - **Alternativas descartadas:** Añadir `_persistence/` al `.gitignore` del destino, descartado como activamente incorrecto: E1 de `905_guideline/principles.md` establece Git como registro de estado entre sesiones, así que `_persistence/` debe versionarse, no ignorarse.
-- **Consecuencias:** `_persistence/` queda siempre trackeable por Git en el proyecto destino; cualquier necesidad futura de generar `CLAUDE.md` en destino sería una tarea separada.
+- **Consecuencias:** `_persistence/` queda siempre trackeable por Git en el proyecto destino; cualquier necesidad futura de generar `CLAUDE.md` en destino sería una tarea separada. **Enmendada en D-020** (2026-07-23): `init` pasó a sembrar también `_guideline/`; la parte de esta decisión sobre no crear `CLAUDE.md` ni tocar `.gitignore` sigue vigente sin cambios.
 
 ### D-013 — `init` crea `_persistence/` pero exige que `project_root` ya exista
 
@@ -177,3 +179,19 @@
 - **Decisión:** Dividir en `methodology.md` (§0-§4, §6, §7, Apéndice) y `agents-and-evaluation.md` (§3.1, §5, §8, §9, §10) sin renumerar ninguna sección; los números quedan únicos globalmente entre ambos archivos, así que "§8" significa lo mismo se lea donde se lea.
 - **Alternativas descartadas:** Renumerar las secciones movidas para que cada archivo tuviera numeración correlativa propia, descartado porque habría obligado a reescribir referencias cruzadas en ambos documentos y en `principles.md` sin ninguna ganancia real (mismo problema que evitó D-015 con los códigos de `principles.md`).
 - **Consecuencias:** Cero referencias cruzadas rotas (verificado por script: 28 secciones definidas, 0 referencias `§N` rotas). Cada archivo lleva en cabecera un mapa de qué § vive dónde. `principles.md` (que citaba `methodology.md §10.2`, mudada a `agents-and-evaluation.md`) tuvo que corregirse igual, porque la mudanza de sección entre archivos sí cambia cuál documento hay que citar, aunque el número de sección no cambie.
+
+### D-020 — Enmienda a D-012: `init` también siembra `_guideline/`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** T-009 quedó bloqueada porque, tal como estaba planteada, contradecía D-012 (`init` solo siembra los seis archivos de memoria). Había tres opciones sobre la mesa: ampliar D-012, un subcomando `soda guideline` aparte, o un flag `--with-guideline`. El usuario decidió explícitamente ampliar D-012.
+- **Decisión:** `soda init` siembra en una sola pasada tanto `_persistence/` (memoria, D-012 original) como `_guideline/` (doctrina, T-008/T-009), reportando cada carpeta en su propio bloque de salida.
+- **Alternativas descartadas:** Subcomando `soda guideline` separado, descartado por fragmentar un flujo que el usuario quiere de un solo paso; flag `--with-guideline` opt-in, descartado porque dejaría la doctrina fuera por defecto, contrario al objetivo de que ningún proyecto destino se quede sin ella al iniciar.
+- **Consecuencias:** `init_guideline()` (nueva, `src/soda/cli.py`) y `_sembrar()` (helper común factorizado de `init_persistence()`) implementan la siembra. La parte de D-012 sobre no crear `CLAUDE.md` ni tocar `.gitignore` sigue vigente sin cambios. Ver D-021 para cómo se reporta cada carpeta.
+
+### D-021 — `_persistence/` y `_guideline/` se siembran igual pero se reportan distinto
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al implementar D-020, surgió la pregunta de si un archivo existente en destino que no coincide con la plantilla del paquete debía tratarse igual en `_persistence/` que en `_guideline/`. No son la misma clase de archivo: la memoria es del proyecto destino (que diverja de la plantilla es lo esperado) y la doctrina la posee la versión instalada de `soda` (que diverja es una señal de desfase).
+- **Decisión:** Ambas carpetas se siembran con la misma regla no destructiva de D-011 (nunca se toca un archivo existente sin `--force`), pero se reportan distinto: en `_persistence/`, un archivo existente siempre se salta como `SALTADO`, sin compararlo; en `_guideline/`, un archivo existente que no coincide byte a byte con el del paquete se reporta con la constante nueva `DIFIERE` ("difiere, saltado") en vez de `SALTADO`, avisando del desfase y sugiriendo `--force`.
+- **Alternativas descartadas:** Reportar ambas carpetas igual (todo `SALTADO`), descartado porque un destino que instaló una versión vieja de `soda` se quedaría con una `methodology.md` desactualizada para siempre y en silencio, sin ninguna señal de que existe una versión más nueva.
+- **Consecuencias:** Ninguna de las dos carpetas se toca sin `--force` (D-011 sigue rigiendo intacto); lo único que cambia es que el desfase deja de ser silencioso. Cubierto por un test explícito de que la memoria nunca se marca `DIFIERE` (T-009).

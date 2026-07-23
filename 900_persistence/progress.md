@@ -7,27 +7,42 @@
 
 ## Estado actual
 
-T-020 completada: el Camino B (Claude Agent SDK for Python, D-036) quedó verificado EN VIVO
-sobre suscripción, no solo por documentación. `scripts/chat_delegacion_sdk.py` demuestra
-`tool_use` estructurado gestionado por el propio SDK (sin bucle a mano), autenticación por
-OAuth de `claude /login` sin `ANTHROPIC_API_KEY`, y delegación automática de la sesión
-principal a un subagente `AgentDefinition` (`clocker`), con enrutado correcto (delega ante
-"qué hora es", no delega ante "capital de Francia"). D-036 y L-014 quedan confirmadas por
-evidencia real; C-008 queda definitivamente superada para producto. Del spike salieron tres
-hallazgos nuevos (L-015 a L-017): observabilidad de la delegación anidada vía
-`parent_tool_use_id`, dos ajustes de configuración imprescindibles del SDK
-(`permission_mode="bypassPermissions"` y permitir `ToolSearch` en `allowed_tools`), y que la
-herramienta de delegación se llama `Agent` o `Task` según el build del CLI. T-019 sigue `No
-implementada`: con el Camino B ya validado en real, el próximo paso es retomarla para
-terminar de definir el nuevo orden de construcción, incluida la incógnita de persistencia de
-sesión viva con `ClaudeSDKClient` que quedó deliberadamente fuera de este spike.
+T-019 completada: quedó definido el nuevo orden de construcción de `soda` a la luz del
+pivote REPL+suscripción, en siete pasos (T-021 a T-027), aprobado por el usuario. La pieza
+central es D-037: la espina de control es HÍBRIDA — Python posee lo determinista y barato
+(detección de estado en disco, git/NC-007, gates humanos/C-007, qué fase toca según
+`methodology.md` §3), la sesión LLM persistente (D-035/D-036) posee solo el juicio y la
+delegación a subagentes. Esto resuelve la tensión que D-035 había dejado abierta al reabrir
+D-025/D-026: ambas siguen vigentes dentro de su dominio (el camino feliz mecánico del
+incremento no paga cuota por juicio LLM), pero ya no describen la totalidad del control.
+Se confirmó además que el arranque de un proyecto nuevo empieza siempre por el estadio de
+PROTOTIPADO (`methodology.md` §4), antes de la maquinaria del incremento de 11 pasos: sin
+`state.yaml` ni tests, con juicio humano + materialización de subagentes sobre la sesión
+viva. Sesión 100% de análisis y diseño, sin código nuevo. T-017 (`soda close`/
+`sesion-closer`) queda absorbida/reformulada por T-024; T-014 a T-016 siguen en suspenso,
+diferidas hasta después del prototipado, sin cancelarse.
 
 ## Qué sigue
 
-- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Completar la reevaluación del orden de construcción con el REPL/orquestador persistente en el centro, ahora con el Camino B (Agent SDK) validado en real por T-020; incluye decidir la persistencia de sesión viva con `ClaudeSDKClient`.
-- El resto del orden de construcción anterior (T-014 a T-017) queda en suspenso, pendiente de lo que resuelva T-019; no se cancela, pero probablemente cambie de forma.
+- [T-021](tasks.md#t-021--sesión-persistente-detrás-de-provider) — Sesión persistente detrás de `Provider`: resolver `ClaudeSDKClient` multi-turno sobre suscripción. Próximo paso a ejecutar.
+- [T-022](tasks.md#t-022--bucle-repl-de-soda--canal-con-el-humano) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: bucle REPL + canal humano, memoria como tool de lectura/escritura con `sesion-starter`/`sesion-closer` portados, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
+- [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) a [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — Maquinaria del incremento (MVP en adelante), diferida hasta después del gate de madurez (T-027).
 
 ## Historial de hitos
+
+### 2026-07-23 — T-019 completada: nuevo orden de construcción con espina de control híbrida (D-037)
+
+Sesión 100% de análisis, diseño y planificación, sin código. Retomó T-019 y la cerró: la
+espina de control de `soda` queda repartida entre Python (determinista, barato: detección de
+estado en disco, git/NC-007, gates humanos/C-007, la tabla mecánica de `methodology.md` §3) y
+la sesión LLM persistente (juicio y delegación, honrando D-035/D-036 sin violar C-006/D-025).
+Confirmado que el arranque de un proyecto nuevo empieza por el estadio de prototipado
+(`methodology.md` §4) antes de la maquinaria del incremento. Se validaron con el usuario dos
+flujos de trabajo (proyecto nuevo / proyecto en marcha) con roles etiquetados
+([PY]/[LLM]/[SUB]/[HUM]/[MEM]/[GIT]). Entregable: el nuevo orden de construcción en siete
+pasos, registrado como T-021 a T-027, ordenado de fundación (sesión persistente detrás de
+`Provider`) a agentes de trabajo (Descubridor, Prototipador, gate de madurez). T-017 queda
+absorbida/reformulada por T-024; T-014 a T-016 siguen diferidas sin cancelarse.
 
 ### 2026-07-23 — T-020 verificada en vivo: `tool_use` estructurado del Agent SDK sobre suscripción, con subagente delegado
 

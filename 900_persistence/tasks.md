@@ -22,8 +22,15 @@
 | [T-016](#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) | `soda step`: invocar al agente especializado que corresponda | No implementada |
 | [T-017](#t-017--soda-close-invocar-a-sesion-closer) | `soda close`: invocar a `sesion-closer` | No implementada |
 | [T-018](#t-018--spike-bucle-repl-exterior--delegación-a-subagente-sobre-suscripción) | Spike: bucle REPL exterior + delegación a subagente sobre suscripción | Implementada |
-| [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | No implementada |
+| [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | Implementada |
 | [T-020](#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) | Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción | Implementada |
+| [T-021](#t-021--sesión-persistente-detrás-de-provider) | Sesión persistente detrás de `Provider` | No implementada |
+| [T-022](#t-022--bucle-repl-de-soda--canal-con-el-humano) | Bucle REPL de `soda` + canal con el humano | No implementada |
+| [T-023](#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) | Memoria como tool de lectura + `sesion-starter` portado a la sesión | No implementada |
+| [T-024](#t-024--memoria-como-tool-de-escritura--sesion-closer) | Memoria como tool de escritura + `sesion-closer` | No implementada |
+| [T-025](#t-025--descubridor-como-subagente-agentdefinition) | `Descubridor` como subagente `AgentDefinition` | No implementada |
+| [T-026](#t-026--prototipador-como-subagente--bucle-p3p4) | `Prototipador` como subagente + bucle P3↔P4 | No implementada |
+| [T-027](#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) | Gate de madurez / feature freeze: cierre del estadio de prototipo | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -148,7 +155,7 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Invoca al agente `sesion-closer`: redacta el hito, decide qué va a `lessons.md` y qué a `decisions.md`, mantiene índices (juicio de redacción, no se hardcodea). El commit y el push los hace Python al final, no el agente.
-- **Pendiente:** Todo el diseño e implementación. Último paso del orden de construcción (D-028), hoy reabierto por D-035; ver T-019.
+- **Pendiente:** Todo el diseño e implementación. **Absorbida/reformulada por T-019 (2026-07-23):** con el nuevo orden de construcción, `sesion-closer` deja de ser un `soda close` de un solo disparo invocado sobre `claude -p`; se reconstruye como paso 4 del nuevo orden (T-024, "Memoria como tool de escritura + `sesion-closer`"), redactando sobre la sesión persistente que presenció (no reconstruyendo desde disco, el pago real de D-035), con Python haciendo el commit+push. Esta entrada T-017 se conserva como registro histórico del diseño previo al pivote; el trabajo vivo continúa en T-024.
 
 ### T-018 — Spike: bucle REPL exterior + delegación a subagente sobre suscripción
 
@@ -160,10 +167,11 @@
 
 ### T-019 — Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción
 
-- **Estado:** No implementada
+- **Estado:** Implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Con el pivote registrado en D-035 y validado empíricamente en T-018, reevaluar todo el trabajo previo del harness: qué sobrevive (doctrina `_guideline/`, memoria `_persistence/`, `soda init`, `soda start`), qué queda superado (D-025/D-026 reabiertas, la interfaz de 5 comandos, `sesion-starter` como invocación de un solo disparo vía `claude -p`), y definir el nuevo orden de construcción con el REPL/orquestador persistente en el centro. Incluye decidir si el bucle interior de delegación se construye con el Agent SDK for Python (tools/subagentes estructurados, L-014) o se mantiene la convención a mano validada en T-018 (C-008).
-- **Pendiente:** Sesión de análisis y decisión (2026-07-23, sin código): el usuario propuso un flujo de arranque esperado para `soda` y su análisis produjo D-036 (el bucle interior se construye con el Claude Agent SDK usando `tool_use` estructurado, no la convención de marcador de C-008) y cuatro hallazgos que ordenan el resto de T-019 (detección de estado por Python con tres estados en disco, no dos; el Descubridor —no `sesion-starter`— es el primer agente en un proyecto nuevo, confirma D-028; el REPL persistente desbloquea la parte abierta de C-007; `sesion-starter` sigue siendo subagente separado pero invocado por Python, no por el LLM). Sigue pendiente: el nuevo orden de construcción completo (qué agente/comando va primero, cómo se compone `soda step`/`state.yaml` sobre el REPL) y su cableado; se retoma tras T-020.
+- **Resultado:** Sesión de análisis y decisión (2026-07-23, sin código; retoma la sesión previa que había producido D-036 y dejado T-019 con la incógnita de persistencia de sesión abierta). Se resolvió la tensión pendiente entre D-035 (orquestador vivo con juicio) y D-025/D-026 (camino feliz mecánico sin LLM): D-037 fija la espina de control HÍBRIDA — Python posee lo determinista y barato (detección de estado en disco, git/NC-007, gates humanos/C-007, qué fase toca según `methodology.md` §3), la sesión LLM persistente posee solo el juicio y la delegación (D-036). Se confirmó además que el arranque de un proyecto nuevo empieza por el estadio de PROTOTIPADO (`methodology.md` §4: Descubridor → `discovery.md`, Prototipador, bucle P3↔P4, juicio de producto/UX y "mago de Oz" reservados al humano), antes de la maquinaria del incremento de 11 pasos; el prototipo no usa `state.yaml` ni tests. Se construyeron y validaron con el usuario dos flujos de trabajo (proyecto nuevo / proyecto en marcha) etiquetando qué parte actúa en cada paso ([PY]/[LLM]/[SUB]/[HUM]/[MEM]/[GIT]). Entregable: el nuevo orden de construcción, registrado como tareas T-021 a T-027 (ver detalle de cada una), ordenado por fundación → validar la espina con lo de menor riesgo → agentes de trabajo, en pasos pequeños y verificables uno a uno. T-017 (`soda close`/`sesion-closer`) queda absorbida/reformulada por T-024 (paso 4 del nuevo orden); T-014 a T-016 (`state.yaml`, `soda status`, `soda step`) siguen en suspenso, diferidas hasta después del prototipado (son del MVP en adelante), sin cancelarse.
+- **Pendiente:** Ninguno propio de esta tarea; el trabajo vivo continúa en T-021 (próximo paso a ejecutar).
 
 ### T-020 — Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción
 
@@ -172,3 +180,52 @@
 - **Descripción:** Con D-036 decidido (el bucle interior de delegación usa el Claude Agent SDK for Python con `tool_use` estructurado, no la convención de marcador de C-008/T-018), construir y verificar en real un spike equivalente a `scripts/chat_delegacion.py` pero usando el Agent SDK sobre suscripción: herramientas `@tool` / subagentes `AgentDefinition`, delegación detectada por el propio SDK, corriendo sin `ANTHROPIC_API_KEY` (autenticación por OAuth de `claude /login`).
 - **Resultado:** `pyproject.toml`: nuevo grupo opcional `[project.optional-dependencies] spike = ["claude-agent-sdk"]` (no dependencia dura del producto, solo para `scripts/`, hasta que el Camino B se promueva). `scripts/probar_agent_sdk.py`: smoke test no interactivo de autenticación por suscripción con el Agent SDK (punto 2). `scripts/chat_delegacion_sdk.py`: spike de delegación con `@tool` + `create_sdk_mcp_server` + `AgentDefinition` (agente `clocker`, dueño de la herramienta del reloj), con visualización en pantalla de la invocación del agente y sus pasos internos vía `parent_tool_use_id` (ver L-015). Los tres puntos críticos quedaron verificados EN VIVO por el usuario en su propia terminal, sobre suscripción (`ANTHROPIC_API_KEY` ausente, `is_error=False`): (1) `tool_use` estructurado — el SDK gestiona el bucle interior automáticamente (nada de `if stop_reason == "tool_use"` a mano, corrige la formulación inicial de la descripción de esta tarea), el dato factual (fecha/hora real) lo calcula Python (`datetime.now()`), nunca el modelo, y se observa el `ToolUseBlock` en el stream; (2) autenticación por suscripción confirmada, reutilizando la política de borrar variables de entorno de API de `ClaudeCLIProvider` (D-031); (3) subagente `clocker` definido con `AgentDefinition`, delegación automática desde la sesión principal vía la herramienta `Agent`/`Task` (ver L-017) ante una petición de hora, y ausencia de delegación ante una pregunta que no la necesita ("capital de Francia"). D-036 y L-014 quedan confirmadas por evidencia en vivo, no solo por documentación (ver notas de actualización en `decisions.md` y `lessons.md`). Registradas L-015 a L-017 con los hallazgos concretos de observabilidad y configuración del SDK.
 - **Pendiente:** Ninguno propio de esta tarea. Queda pendiente para T-019 la incógnita de persistencia de sesión viva con `ClaudeSDKClient` (dejada fuera del spike deliberadamente).
+
+### T-021 — Sesión persistente detrás de `Provider`
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 1 del nuevo orden de construcción (T-019, D-037). Resuelve la incógnita que T-020 dejó deliberadamente fuera: `ClaudeSDKClient` multi-turno sobre suscripción, encapsulado detrás de `Provider` para no filtrar el SDK más allá de esa frontera (protege D-006/D-008). La interfaz `send(prompt) -> str` de un solo disparo (D-008) evoluciona a un objeto sesión que mantiene contexto entre turnos. Recicla la política de borrado de `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` (D-031) y los ajustes de configuración de L-016 (`permission_mode="bypassPermissions"`, `ToolSearch` permitido en `allowed_tools`).
+- **Pendiente:** Todo el diseño e implementación. Verificación esperada: 2-3 turnos consecutivos manteniendo contexto sobre suscripción. Es el próximo paso a ejecutar.
+
+### T-022 — Bucle REPL de `soda` + canal con el humano
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 2 del nuevo orden de construcción. Enciende la sesión persistente resuelta en T-021, lee stdin y escribe stdout, mantiene la sesión viva entre turnos, y cierra la parte de C-007 que seguía abierta (canal con el humano para gates y diálogo).
+- **Pendiente:** Todo el diseño e implementación. Depende de T-021.
+
+### T-023 — Memoria como tool de lectura + `sesion-starter` portado a la sesión
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 3 del nuevo orden de construcción. Expone la lectura de `_persistence/` como tool del Agent SDK (recicla `src/soda/agents/memoria.py`, T-012) y porta `sesion-starter` del modelo de un disparo sobre `claude -p` al modelo de sesión persistente (T-021/T-022). Es read-only y de menor riesgo; ya tiene banco de pruebas real (`900_persistence/` de este mismo repo).
+- **Pendiente:** Todo el diseño e implementación. Depende de T-022.
+
+### T-024 — Memoria como tool de escritura + `sesion-closer`
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 4 del nuevo orden de construcción. Añade una tool de escritura de memoria que ejecuta Python por debajo (el commit y el push de git siguen siendo obra de Python, NC-007, nunca del LLM); construye `sesion-closer` (tarea originalmente T-017, nunca implementada bajo el diseño previo) redactando sobre la sesión persistente que presenció, no reconstruyendo desde disco como hacía el diseño anterior — ese es el pago real del pivote D-035. Es el primer flujo end-to-end del nuevo orden: abrir sesión → conversar → cerrar → persistir → la siguiente sesión reanuda con lo escrito.
+- **Pendiente:** Todo el diseño e implementación. Depende de T-023. Absorbe/reformula T-017 (ver nota en su detalle).
+
+### T-025 — `Descubridor` como subagente `AgentDefinition`
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 5 del nuevo orden de construcción. Primer agente de trabajo real del harness: entrevista multi-turno con el humano que produce `discovery.md`, aplicando el riesgo dominante y el campo cerrado de actores de `methodology.md` §4.2/§4.3. Se registra como subagente `AgentDefinition` del Agent SDK, aceptando que la herramienta de delegación se llame `Agent` o `Task` según el build del CLI (L-017).
+- **Pendiente:** Todo el diseño e implementación. Depende de T-024.
+
+### T-026 — `Prototipador` como subagente + bucle P3↔P4
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 6 del nuevo orden de construcción. Subagente que materializa el prototipo guiado por `discovery.md` (T-025): wireframes/HTML o spike/PoC según lo que el descubrimiento pida, iterando en el bucle P3↔P4 de `methodology.md` §4 con feedback humano en vivo.
+- **Pendiente:** Todo el diseño e implementación. Depende de T-025.
+
+### T-027 — Gate de madurez / feature freeze: cierre del estadio de prototipo
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Paso 7 del nuevo orden de construcción. Cierra el estadio de prototipado (`methodology.md` §4.4) y marca la transición a la maquinaria del incremento de 11 pasos (MVP en adelante), donde entran en juego `state.yaml` (T-014), `soda status` (T-015) y `soda step` (T-016).
+- **Pendiente:** Todo el diseño e implementación. Depende de T-026. Último paso del nuevo orden de construcción definido en esta sesión.

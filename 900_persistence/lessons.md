@@ -14,6 +14,9 @@
 | [L-008](#l-008--estimar-una-reducción-de-líneas-falla-cuando-el-contenido-a-quitar-vive-dentro-de-otras-líneas) | Estimar una reducción de líneas falla cuando el contenido a quitar vive dentro de otras líneas | 2026-07-23 |
 | [L-009](#l-009--un-recorte-por-palabra-clave-puede-destruir-contenido-con-un-referente-distinto-que-comparte-la-misma-palabra) | Un recorte por palabra clave puede destruir contenido con un referente distinto que comparte la misma palabra | 2026-07-23 |
 | [L-010](#l-010--no-asumir-el-entorno-de-ejecución-del-orquestador-sin-verificarlo-con-el-usuario) | No asumir el entorno de ejecución del orquestador sin verificarlo con el usuario | 2026-07-23 |
+| [L-011](#l-011--un-test-que-consulta-git-puede-leer-la-configuración-global-de-la-máquina) | Un test que consulta git puede leer la configuración global de la máquina | 2026-07-23 |
+| [L-012](#l-012--la-prueba-manual-volvió-a-encontrar-lo-que-la-suite-no-buscaba) | La prueba manual volvió a encontrar lo que la suite no buscaba | 2026-07-23 |
+| [L-013](#l-013--validar-una-url-de-remoto-con-una-regex-estricta-rechaza-remotos-legítimos) | Validar una URL de remoto con una regex estricta rechaza remotos legítimos | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -86,3 +89,24 @@
 - **Contexto:** Durante una sesión de diseño, se asumió que `soda` corría dentro de un harness de Claude Code o Codex, y que la frase de la doctrina "el orquestador es la sesión principal" aplicaba tal cual a ese entorno. El usuario corrigió: `soda` es un script de Python en terminal, sin sesión principal de Claude Code de por medio (ver D-024).
 - **Lección:** Un supuesto sobre el entorno de ejecución de una pieza central del diseño (aquí, el orquestador) puede quedar sin verificar durante varias sesiones si nadie lo contrasta explícitamente contra la naturaleza real del producto que se está construyendo (`soda` es un script Python invocado desde terminal, no un agente de Claude Code).
 - **Aplicación:** Al leer frases de la doctrina que mencionan "sesión principal" o similares, contrastar primero contra qué es literalmente el proceso que las ejecuta en este proyecto, en vez de asumir que se refieren al entorno donde se está teniendo la conversación de diseño.
+
+### L-011 — Un test que consulta git puede leer la configuración global de la máquina
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Los tests de `tests/test_start.py` fallaban de forma desconcertante: el usuario tiene `user.name = "Triple S"` configurado globalmente, así que el flujo de `bootstrap()` no preguntaba la identidad (la daba por resuelta), las respuestas inyectadas del humano falso se desplazaban una posición y fallaban pruebas sin relación aparente entre sí. Peor: los commits de prueba quedaban firmados con la identidad real del usuario.
+- **Lección:** Cualquier código de test que invoque `git config --get` (directa o indirectamente) puede leer configuración global o de sistema de la máquina donde corre, no solo la del repositorio de prueba; eso contamina el resultado del test y, en este caso, filtraba datos reales del usuario a commits desechables.
+- **Aplicación:** Se añadió una fixture `autouse` que aparta `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_SYSTEM` y `GIT_CONFIG_NOSYSTEM` durante los tests, aislando por completo la configuración de git que ve la suite de la de la máquina anfitriona.
+
+### L-012 — La prueba manual volvió a encontrar lo que la suite no buscaba
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Confirma L-005. La suite automatizada de `soda start` estaba en verde, pero al ejecutarlo con la entrada redirigida (no interactivo) reventó con un `EOFError` crudo de `input()` a mitad del arranque.
+- **Lección:** Ningún test había ejercitado el camino de "sin terminal interactiva" porque nadie había pensado en ese caso concreto; la prueba manual lo encontró en el primer intento real. Concreta C-007 en la forma exacta en que muerde en la práctica: no solo "el agente no puede preguntar", sino "el propio script revienta feo si no hay con quién hablar".
+- **Aplicación:** Se añadió `SinCanalConElHumanoError` con mensaje accionable, envolviendo `input()` para traducir el `EOFError` en un error con nombre y salida. Mantener la prueba manual en máquina real como paso de verificación aunque la suite esté verde sigue siendo la forma de descubrir qué falta testear.
+
+### L-013 — Validar una URL de remoto con una regex estricta rechaza remotos legítimos
+
+- **Fecha:** 2026-07-23
+- **Contexto:** La primera versión de `url_valida()` en `src/soda/start.py` rechazaba rutas locales absolutas, que git acepta perfectamente como remoto y que además son lo que usan los tests como "GitHub falso" (un repositorio local en vez de uno real en la nube).
+- **Lección:** Una validación de URL de remoto solo debe atrapar el error de tecleo obvio (pegar el nombre del repo en vez de su URL), no intentar decidir si el remoto existe o es "de verdad": eso lo dice el `push` y lo dice mejor, con el error real de git.
+- **Aplicación:** Se corrigió la regex en el producto (no en el test) para aceptar también rutas locales absolutas y `file://`, documentando en el propio código por qué la validación es deliberadamente permisiva.

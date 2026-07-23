@@ -77,7 +77,9 @@ def test_devuelve_stdout_sin_espacios_sobrantes(monkeypatch, cli_disponible):
     assert ClaudeCLIProvider().send("hola") == "respuesta del modelo"
 
 
-def test_invoca_el_cli_en_modo_print_con_el_prompt_por_stdin(monkeypatch, cli_disponible):
+@pytest.fixture
+def espia(monkeypatch):
+    """Sustituye `subprocess.run` y acumula `(cmd, kwargs)` de cada llamada."""
     llamadas = []
 
     def run_espia(cmd, **kwargs):
@@ -85,12 +87,84 @@ def test_invoca_el_cli_en_modo_print_con_el_prompt_por_stdin(monkeypatch, cli_di
         return _resultado(stdout="ok")
 
     monkeypatch.setattr("soda.providers.claude_cli.subprocess.run", run_espia)
+    return llamadas
+
+
+def test_invoca_el_cli_en_modo_print_con_el_prompt_por_stdin(cli_disponible, espia):
     ClaudeCLIProvider(timeout=42.0).send("mi prompt")
 
-    cmd, kwargs = llamadas[0]
-    assert cmd == ["/ruta/ficticia/claude", "--print"]
+    cmd, kwargs = espia[0]
+    assert cmd[:2] == ["/ruta/ficticia/claude", "--print"]
     assert kwargs["input"] == "mi prompt"
     assert kwargs["timeout"] == 42.0
+
+
+def test_no_persiste_la_sesion_en_el_proyecto_destino(cli_disponible, espia):
+    ClaudeCLIProvider().send("hola")
+    assert "--no-session-persistence" in espia[0][0]
+
+
+# --- Modelo (intercambiable) ----------------------------------------------
+
+
+def test_sin_modelo_no_pasa_el_flag(cli_disponible, espia):
+    ClaudeCLIProvider().send("hola")
+    assert "--model" not in espia[0][0]
+
+
+def test_el_modelo_viaja_como_flag(cli_disponible, espia):
+    ClaudeCLIProvider(model="haiku").send("hola")
+
+    cmd = espia[0][0]
+    assert cmd[cmd.index("--model") + 1] == "haiku"
+
+
+# --- Herramientas ---------------------------------------------------------
+
+
+def test_por_defecto_desactiva_todas_las_herramientas(cli_disponible, espia):
+    ClaudeCLIProvider().send("hola")
+
+    cmd = espia[0][0]
+    assert cmd[cmd.index("--tools") + 1] == ""
+
+
+def test_una_lista_de_herramientas_viaja_separada_por_comas(cli_disponible, espia):
+    ClaudeCLIProvider(tools=["Read", "Glob"]).send("hola")
+
+    cmd = espia[0][0]
+    assert cmd[cmd.index("--tools") + 1] == "Read,Glob"
+
+
+def test_tools_none_deja_el_conjunto_por_defecto_del_cli(cli_disponible, espia):
+    ClaudeCLIProvider(tools=None).send("hola")
+    assert "--tools" not in espia[0][0]
+
+
+# --- Suscripción y directorio de trabajo ----------------------------------
+
+
+def test_borra_las_credenciales_de_api_del_subproceso(monkeypatch, cli_disponible, espia):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-no-usar")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "tampoco")
+    monkeypatch.setenv("PATH_DE_PRUEBA", "se-conserva")
+
+    ClaudeCLIProvider().send("hola")
+
+    entorno = espia[0][1]["env"]
+    assert "ANTHROPIC_API_KEY" not in entorno
+    assert "ANTHROPIC_AUTH_TOKEN" not in entorno
+    assert entorno["PATH_DE_PRUEBA"] == "se-conserva"
+
+
+def test_sin_solo_suscripcion_hereda_el_entorno_tal_cual(cli_disponible, espia):
+    ClaudeCLIProvider(solo_suscripcion=False).send("hola")
+    assert espia[0][1]["env"] is None
+
+
+def test_el_subproceso_corre_en_el_directorio_indicado(tmp_path, cli_disponible, espia):
+    ClaudeCLIProvider(cwd=tmp_path).send("hola")
+    assert espia[0][1]["cwd"] == tmp_path
 
 
 def test_error_si_el_ejecutable_no_esta_en_path(monkeypatch):

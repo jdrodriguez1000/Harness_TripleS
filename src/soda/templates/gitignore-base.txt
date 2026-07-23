@@ -1,0 +1,55 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# --- Entornos y secretos ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+
+# --- Testing y calidad ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# --- Editores / IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Node (solo si aplica) ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# --- Logs y temporales ---
+*.log
+logs/
+tmp/
+.cache/
+
+# La memoria (_persistence/) y la guía (_guideline/) NO se ignoran nunca:
+# son el estado del proyecto y tienen que viajar con el repositorio.

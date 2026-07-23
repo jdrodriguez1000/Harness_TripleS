@@ -32,6 +32,12 @@
 | [D-026](#d-026--diseño-de-la-interfaz-de-comandos-init-start-step-status-close) | Diseño de la interfaz de comandos: `init` / `start` / `step` / `status` / `close` | 2026-07-23 |
 | [D-027](#d-027--stateyaml-deja-de-ser-opcional-es-prerrequisito-de-soda-step-y-soda-status) | `state.yaml` deja de ser opcional: es prerrequisito de `soda step` y `soda status` | 2026-07-23 |
 | [D-028](#d-028--orden-de-construcción-soda-start-sesion-starter-stateyaml-status-step-close) | Orden de construcción: `soda start` → `sesion-starter` → `state.yaml` → `status` → `step` → `close` | 2026-07-23 |
+| [D-029](#d-029--los-agentes-del-harness-corren-sin-herramientas-python-les-inyecta-el-contexto) | Los agentes del harness corren sin herramientas; Python les inyecta el contexto | 2026-07-23 |
+| [D-030](#d-030--el-modelo-es-argumento-del-constructor-del-provider-no-de-send) | El modelo es argumento del constructor del `Provider`, no de `send` | 2026-07-23 |
+| [D-031](#d-031--la-suscripción-se-garantiza-borrando-las-variables-de-entorno-de-api-no-confiando-en-que-no-estén) | La suscripción se garantiza borrando las variables de entorno de API, no confiando en que no estén | 2026-07-23 |
+| [D-032](#d-032--los-archivos-de-memoria-bajo-demanda-viajan-solo-con-su-índice) | Los archivos de memoria bajo demanda viajan solo con su índice | 2026-07-23 |
+| [D-033](#d-033--modelos-es-un-diccionario-en-código-no-un-archivo-de-configuración) | `MODELOS` es un diccionario en código, no un archivo de configuración | 2026-07-23 |
+| [D-034](#d-034--se-adelanta-el-cableado-de-soda-start-con-sesion-starter) | Se adelanta el cableado de `soda start` con `sesion-starter` | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -258,3 +264,51 @@
 - **Decisión:** Orden final: (1) `soda start`, rama de proyecto vacío — bootstrap Git puro en Python, sin agentes (T-013, próximo paso de la siguiente sesión); (2) `sesion-starter`, rama de proyecto con memoria — primer agente del harness (T-012); (3) `state.yaml`, formato mínimo del estado del incremento (T-014); (4) `soda status`, lee el estado, cero cuota (T-015); (5) `soda step`, los agentes especializados (T-016); (6) `soda close`, `sesion-closer` (T-017).
 - **Alternativas descartadas:** Construir primero `sesion-closer` con el argumento de que "el starter lee lo que el closer escribe" (dependencia lógica), descartado como criterio de orden de *construcción* porque la memoria de este mismo repo (`900_persistence/`) ya existe y está llena de seis sesiones de contenido auténtico: no hace falta construir el closer antes para tener con qué probar el starter. Razón positiva de que `sesion-starter` vaya segundo y no al final: es el único agente que no puede romper nada (solo lectura, el peor caso es un resumen equivocado en pantalla), ya tiene banco de pruebas real y su prompt ya está escrito y probado (skill `session-startup`, ejercitada seis veces).
 - **Consecuencias:** Fija el punto de entrada de la próxima sesión (T-013). Cada comando se termina como unidad antes de pasar al siguiente.
+
+### D-029 — Los agentes del harness corren sin herramientas; Python les inyecta el contexto
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir `sesion-starter` (T-012), había que decidir si el agente recibe herramientas de lectura (`Read`/`Glob`) para navegar `_persistence/` por su cuenta, o si Python le entrega ya compuesto todo lo que necesita.
+- **Decisión:** `ClaudeCLIProvider` invoca siempre con `--tools ""` por defecto (parámetro `tools: Sequence[str] | None = ()`); el agente recibe el contexto ya armado en el prompt.
+- **Alternativas descartadas:** Darle `Read`+`Glob` y dejar que el agente navegue la memoria, descartado por tres razones: `Read`/`Glob` son herramientas de Claude Code y atarían el prompt a un CLI concreto (rompiendo la portabilidad entre proveedores); se gastaría cuota en descubrir rutas que el script ya conoce por convención; y aparecerían diálogos de permiso y riesgo de escritura que un agente de solo lectura no necesita.
+- **Consecuencias:** Todo agente del harness es texto que entra, texto que sale. Cambiar de proveedor o de CLI no exige reescribir ningún prompt de agente. `memoria.py` hace en Python puro (gratis) lo que de otro modo el modelo tendría que descubrir con herramientas (pagando cuota).
+
+### D-030 — El modelo es argumento del constructor del `Provider`, no de `send`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** `ClaudeCLIProvider` necesitaba saber qué modelo usar (`haiku`, `sonnet`, `opus`) para que `src/soda/core/flota.py` pudiera asignar un modelo distinto a cada agente.
+- **Decisión:** El modelo se fija en el constructor del `Provider` (`ClaudeCLIProvider(model=...)`); la interfaz `Provider.send(prompt) -> str` no se toca.
+- **Alternativas descartadas:** Pasar el modelo como parámetro de `send(prompt, model=...)`, descartado porque el modelo es configuración del proveedor (quién construye la flota decide qué modelo usa cada agente), no configuración del mensaje; el agente recibe el `Provider` ya construido por inyección y no sabe qué hay detrás.
+- **Consecuencias:** `flota.proveedor_para(agente, project_root)` es el único sitio que decide el modelo; el agente (`SesionStarter`) nunca elige ni conoce el modelo que usa.
+
+### D-031 — La suscripción se garantiza borrando las variables de entorno de API, no confiando en que no estén
+
+- **Fecha:** 2026-07-23
+- **Contexto:** El CLI `claude` prefiere `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` si están presentes en el entorno y factura por token, justo lo que el proyecto existe para evitar (C-006).
+- **Decisión:** `ClaudeCLIProvider` (con `solo_suscripcion=True`, por defecto) borra `ANTHROPIC_API_KEY` y `ANTHROPIC_AUTH_TOKEN` del entorno del subproceso antes de invocar el CLI, en vez de asumir que nadie las tiene puestas. Verificado: con una key falsa puesta en el entorno, la llamada sigue funcionando sobre suscripción.
+- **Alternativas descartadas:** Confiar en que el entorno de ejecución nunca tenga esas variables, descartado por frágil: cualquier máquina de desarrollo con la API configurada para otro proyecto rompería la premisa central sin ningún aviso. También se descarta usar `--bare` del CLI `claude` (fuerza autenticación por API key) y `--max-budget-usd` como control de gasto (solo aplica a API key, no a suscripción).
+- **Consecuencias:** El uso de suscripción queda garantizado por código, no por convención de entorno. Cualquier proveedor nuevo basado en CLI debe replicar este patrón si el CLI subyacente tiene el mismo comportamiento de preferir credenciales de API.
+
+### D-032 — Los archivos de memoria bajo demanda viajan solo con su índice
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al componer el prompt de `sesion-starter`, había que decidir cuánto de `lessons.md`/`decisions.md`/`constraints.md`/`assumptions.md` (los cuatro de lectura bajo demanda) entrar al contexto del modelo.
+- **Decisión:** Esos cuatro archivos viajan solo con su sección `## Índice`; `progress.md` y `tasks.md` viajan íntegros. Aplica al pie de la letra la convención ya vigente en el proyecto de que el índice es la interfaz de búsqueda.
+- **Alternativas descartadas:** Enviar los seis archivos íntegros, descartado por costo de contexto sin beneficio proporcional: el índice ya dice qué existe y dónde, que es todo lo que el informe de reanudación necesita reportar sin profundizar.
+- **Consecuencias:** Efecto medido: 86 KB de memoria completa se convierten en 44 KB de prompt. Si el informe necesitara detalle de un archivo bajo demanda, ese detalle quedaría fuera de esta primera versión (no hay mecanismo de "pedir más" todavía).
+
+### D-033 — `MODELOS` es un diccionario en código, no un archivo de configuración
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Definir dónde vive el mapa agente→modelo que usa `src/soda/core/flota.py`.
+- **Decisión:** `MODELOS` es un diccionario Python hardcodeado en `flota.py`. `sesion-starter` usa `haiku` porque el criterio de elección de modelo es el trabajo que hace el agente, no su importancia: resume archivos que ya tiene delante, no razona sobre código ni decide nada, y eso lo hace bien un modelo pequeño (relacionado con C-006, la cuota es el presupuesto real).
+- **Alternativas descartadas:** Un archivo de configuración (YAML/TOML) para el mapa agente→modelo, descartado por ahora: con un solo agente registrado, construir formato, lectura, validación y errores de un archivo de configuración resuelve un problema que todavía no existe.
+- **Consecuencias:** Cambiar el modelo de un agente es editar una línea de `MODELOS`. Se convierte en archivo cuando el usuario necesite cambiar de modelo sin editar el paquete instalado.
+
+### D-034 — Se adelanta el cableado de `soda start` con `sesion-starter`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** El orden de construcción (D-028) había diferido a un "paso 6" no especificado el momento de conectar `soda start` con `sesion-starter` una vez ambos existieran por separado.
+- **Decisión:** Al construir T-013 (`soda start`) en esta misma sesión, con T-012 (`sesion-starter`) ya implementado, se cableó la bifurcación completa en `cli.py` en vez de dejar un stub pendiente para más adelante.
+- **Alternativas descartadas:** Dejar `soda start` con la rama de memoria como un `TODO`/stub hasta una sesión futura, descartado porque ambas piezas ya existían y dejarlas sin conectar habría sido peor que completar el cableado mientras el contexto de ambas estaba fresco.
+- **Consecuencias:** `soda start` queda funcional de punta a punta en esta sesión (las dos ramas), verificado en real por el usuario, sin dejar trabajo a medias entre T-012 y T-013.

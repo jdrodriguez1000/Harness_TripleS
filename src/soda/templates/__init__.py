@@ -20,12 +20,15 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 
 __all__ = [
+    "GITIGNORE_FILENAME",
+    "GITIGNORE_TEMPLATE",
     "GUIDELINE_DIRNAME",
     "GUIDELINE_FILENAMES",
     "PERSISTENCE_DIRNAME",
     "PERSISTENCE_FILENAMES",
     "guideline_root",
     "persistence_root",
+    "read_gitignore_template",
     "read_guideline_template",
     "read_persistence_template",
 ]
@@ -50,6 +53,15 @@ GUIDELINE_FILENAMES: tuple[str, ...] = (
     "methodology.md",
     "agents-and-evaluation.md",
 )
+
+
+#: Nombre del archivo en el proyecto destino.
+GITIGNORE_FILENAME = ".gitignore"
+
+#: Nombre dentro del paquete. No se llama `.gitignore` a propósito: un archivo
+#: con ese nombre aquí dentro sería un `.gitignore` de verdad para el propio
+#: repositorio del harness, no una plantilla, y afectaría a lo que git ve.
+GITIGNORE_TEMPLATE = "gitignore-base.txt"
 
 
 def _leer(raiz: Traversable, nombre: str, conocidas: tuple[str, ...], que: str) -> str:
@@ -98,3 +110,13 @@ def read_guideline_template(nombre: str) -> str:
         KeyError: Si `nombre` no es un documento conocido.
     """
     return _leer(guideline_root(), nombre, GUIDELINE_FILENAMES, GUIDELINE_DIRNAME)
+
+
+def read_gitignore_template() -> str:
+    """Devuelve el `.gitignore` base que `soda start` siembra en un proyecto nuevo.
+
+    Es un punto de partida deliberadamente genérico. No ignora `_persistence/`
+    ni `_guideline/`: son el estado del proyecto y tienen que viajar con el
+    repositorio.
+    """
+    return (files(__package__) / GITIGNORE_TEMPLATE).read_text(encoding="utf-8")

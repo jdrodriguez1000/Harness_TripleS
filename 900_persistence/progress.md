@@ -7,36 +7,41 @@
 
 ## Estado actual
 
-Sesión de diseño puro, sin código nuevo, posterior al cierre de T-009/T-011. Se resolvió la
-pregunta de diseño que quedaba abierta sobre `agents-and-evaluation.md` §5: `agent-worker`
-no se construye (era un placeholder genérico), en su lugar el harness construye agentes
-especializados (Probador, Implementador, Refactorizador, Revisor de código, etc., D-022), y
-§5 pasa de descripción a hoja de ruta de esos agentes (D-023). Se corrigió un supuesto de
-diseño equivocado: `soda` no corre dentro de una sesión de Claude Code/Codex, es un script
-de Python en terminal, así que el orquestador es el script mismo (D-024, L-010); se decidió
-posponer un orquestador LLM porque el camino feliz de un incremento ya es mecánico contra
-`methodology.md` §3 y no necesita juicio de coordinación (D-025). Se descubrió una
-restricción técnica: `claude -p` no tiene canal con el humano, así que los gates y todo
-diálogo con el usuario viven en Python (C-007). Se diseñó la interfaz de comandos completa
-(`init`/`start`/`step`/`status`/`close`, D-026), se estableció que `state.yaml` es
-prerrequisito de `soda step`/`soda status` y no un rodeo (D-027), y se fijó el orden de
-construcción con `sesion-starter` como primer agente por ser el único de solo lectura
-(D-028). Quedan registradas cinco tareas nuevas (T-013 a T-017) para ese orden y T-012
-ajustada con su lugar fijado (segundo paso). El usuario verificó además por su cuenta que
-`soda init` (instalado con pipx) siembra tanto `_persistence/` como `_guideline/` en un
-proyecto real, confirmando T-009. No hay agentes propios de `soda` todavía.
+Los dos primeros pasos del orden de construcción (D-028) quedaron implementados y
+verificados: `soda start` (T-013, bootstrap de Git en Python puro para proyecto vacío) y
+`sesion-starter` (T-012, primer agente real del harness, de solo lectura). El paquete `soda`
+tiene ya su primer consumidor de la capa de proveedores: `ClaudeCLIProvider` ganó `model`,
+`tools`, `cwd` y `solo_suscripcion`, y `src/soda/core/flota.py` fija en código qué modelo usa
+cada agente (`sesion-starter` → `haiku`). `src/soda/agents/memoria.py` lee `_persistence/`
+sin gastar cuota (Python puro) y decide si la memoria está vacía comparando contra la
+plantilla del paquete. `soda start` bifurca solo con esa lectura: proyecto vacío arranca Git
+(`src/soda/start.py` + `src/soda/core/git.py`, sin `--force` en ningún paso), proyecto con
+memoria invoca a `sesion-starter`. 145 tests en verde, `ruff check` limpio, y el usuario
+verificó ambos flujos en máquina real sobre una carpeta nueva, incluyendo publicación en
+GitHub e idempotencia. Quedan T-014 a T-017 del orden de construcción (D-028) sin empezar.
 
 ## Qué sigue
 
-- [T-013](tasks.md#t-013--soda-start-rama-de-proyecto-vacío-bootstrap-git-en-python-puro) — `soda start`, rama de proyecto vacío: bootstrap Git en Python puro (`git init`, `.gitignore`, URL de GitHub, remote, commit, push). Es el punto de entrada de la siguiente sesión.
-- [T-012](tasks.md#t-012--implementar-sesion-starter-como-agente-de-soda) — `sesion-starter`, segundo paso del orden de construcción (D-028): único agente de solo lectura, con prototipo ya probado (`harness-starter` + skill `session-startup`, seis sesiones) y consumidor real de `Provider`/`ClaudeCLIProvider`.
-- [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) — `state.yaml`, prerrequisito de `soda step`/`soda status` (D-027).
+- [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) — `state.yaml`, prerrequisito de `soda step`/`soda status` (D-027). Es más diseño que código: hay que decidir qué campos representan "dónde está un incremento" contra los 11 pasos de `methodology.md` §3, así que probablemente convenga discutirlo antes de escribir código, como se hizo con T-012.
 - [T-015](tasks.md#t-015--soda-status-lectura-del-estado-cero-cuota) — `soda status`, lectura del estado, cero cuota.
 - [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — `soda step`, agentes especializados (D-022).
 - [T-017](tasks.md#t-017--soda-close-invocar-a-sesion-closer) — `soda close`, invoca a `sesion-closer`.
-- Descartada explícitamente como alternativa: implementar `CodexCLIProvider` antes de tener consumidor del primer proveedor.
 
 ## Historial de hitos
+
+### 2026-07-23 — `soda start` y `sesion-starter` implementados y verificados (T-012, T-013)
+
+`src/soda/agents/` nuevo: `memoria.py` (lectura de `_persistence/` en Python puro, con
+detección de "memoria vacía" por comparación contra la plantilla), `prompts/sesion_starter.md`
+(portado de la skill `session-startup`) y `sesion_starter.py` (clase `SesionStarter`, falla
+antes de invocar al modelo si la memoria está vacía). `ClaudeCLIProvider` ampliado con
+`model`/`tools`/`cwd`/`solo_suscripcion`. `src/soda/core/flota.py` nuevo: único punto
+agente→modelo. `src/soda/core/git.py` y `src/soda/start.py` nuevos: bootstrap de Git 100%
+Python, sin operaciones destructivas, con diálogo inyectado (`preguntar`/`informar`) para
+poder testearlo sin bloquear en `input()`. `soda start` en `cli.py` bifurca entre ambas
+ramas leyendo la memoria. Se registran D-029 a D-034, L-011 a L-013. Verificado con 145
+tests, `ruff` limpio y dos pruebas manuales del usuario en máquina real: bootstrap completo
+(init → start → GitHub → idempotencia) y reanudación con informe de haiku sobre memoria real.
 
 ### 2026-07-23 — Sesión de diseño: alcance de agentes, naturaleza del orquestador e interfaz de comandos (D-022 a D-028, C-007, L-010)
 

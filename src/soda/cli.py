@@ -1,8 +1,9 @@
 """CLI del harness: un solo comando `soda` con subcomandos (D-002).
 
-Por ahora expone `init`, que siembra en un proyecto destino las dos plantillas
+Por ahora expone dos. `init` siembra en un proyecto destino las dos plantillas
 del paquete: `_persistence/` (memoria vacía) y `_guideline/` (los documentos
-normativos, que son producto — D-014).
+normativos, que son producto — D-014). `start` arranca una sesión de trabajo,
+eligiendo rama según lo que diga la memoria (ver `soda.start`).
 
 Las dos se siembran, pero no se tratan igual, porque no son la misma clase de
 archivo. La memoria es del proyecto destino: si ya existe, se salta y punto —
@@ -25,6 +26,12 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from soda.agents.memoria import MemoriaAusenteError, leer_memoria
+from soda.agents.sesion_starter import SesionStarter
+from soda.core import git
+from soda.core.flota import proveedor_para
+from soda.core.provider import ProviderError
+from soda.start import SinCanalConElHumanoError, bootstrap
 from soda.templates import (
     GUIDELINE_DIRNAME,
     GUIDELINE_FILENAMES,
@@ -43,6 +50,8 @@ __all__ = [
     "init_persistence",
     "main",
 ]
+
+AGENTE_STARTER = "sesion-starter"
 
 CREADO = "creado"
 SALTADO = "existe, saltado"
@@ -219,6 +228,58 @@ def _ejecutar_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ejecutar_start(args: argparse.Namespace) -> int:
+    """Elige rama según la memoria y ejecuta la que toque.
+
+    La decisión es de Python y cuesta leer dos archivos: un proyecto sin memoria
+    escrita no tiene nada que reconstruir, y preguntárselo a un modelo sería
+    pagar cuota por una comparación de cadenas.
+    """
+    project_root = Path(args.project_root).resolve()
+
+    try:
+        memoria = leer_memoria(project_root)
+    except MemoriaAusenteError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except OSError as exc:
+        print(f"Error: no se pudo leer la memoria de '{project_root}': {exc}", file=sys.stderr)
+        return 1
+
+    if memoria.faltantes:
+        print(f"Aviso: faltan archivos de memoria: {', '.join(memoria.faltantes)}")
+        print("Ejecuta `soda init` para completarlos.")
+        print()
+
+    if memoria.vacia:
+        try:
+            return 0 if bootstrap(project_root) else 1
+        except (SinCanalConElHumanoError, git.GitError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        except (NotADirectoryError, OSError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+        except KeyboardInterrupt:
+            print("\nArranque interrumpido. Nada quedó a medias en el remoto.")
+            return 1
+
+    print(f"Reanudando sesión en {project_root}")
+    print(f"Consultando a {AGENTE_STARTER}...")
+    print()
+
+    try:
+        informe = SesionStarter(proveedor_para(AGENTE_STARTER, project_root)).informe(
+            project_root
+        )
+    except ProviderError as exc:
+        print(f"Error: {AGENTE_STARTER} no pudo responder: {exc}", file=sys.stderr)
+        return 1
+
+    print(informe)
+    return 0
+
+
 def construir_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="soda",
@@ -246,6 +307,22 @@ def construir_parser() -> argparse.ArgumentParser:
         help="Reemplaza los archivos que ya existan. Destruye memoria acumulada.",
     )
 
+    start = subcomandos.add_parser(
+        "start",
+        help="Arranca una sesión de trabajo sobre un proyecto.",
+        description=(
+            "Si la memoria del proyecto sigue vacía, deja el proyecto listo para "
+            "trabajar: repositorio git, `.gitignore`, remoto, commit inicial y push. "
+            "Si ya hay memoria escrita, entrega el informe de reanudación."
+        ),
+    )
+    start.add_argument(
+        "project_root",
+        nargs="?",
+        default=".",
+        help="Raíz del proyecto destino (por defecto: el directorio actual).",
+    )
+
     return parser
 
 
@@ -256,6 +333,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.comando == "init":
         return _ejecutar_init(args)
+
+    if args.comando == "start":
+        return _ejecutar_start(args)
 
     parser.print_help()
     return 1

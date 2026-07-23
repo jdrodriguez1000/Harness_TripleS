@@ -7,27 +7,47 @@
 
 ## Estado actual
 
-Los dos primeros pasos del orden de construcción (D-028) quedaron implementados y
-verificados: `soda start` (T-013, bootstrap de Git en Python puro para proyecto vacío) y
-`sesion-starter` (T-012, primer agente real del harness, de solo lectura). El paquete `soda`
-tiene ya su primer consumidor de la capa de proveedores: `ClaudeCLIProvider` ganó `model`,
-`tools`, `cwd` y `solo_suscripcion`, y `src/soda/core/flota.py` fija en código qué modelo usa
-cada agente (`sesion-starter` → `haiku`). `src/soda/agents/memoria.py` lee `_persistence/`
-sin gastar cuota (Python puro) y decide si la memoria está vacía comparando contra la
-plantilla del paquete. `soda start` bifurca solo con esa lectura: proyecto vacío arranca Git
-(`src/soda/start.py` + `src/soda/core/git.py`, sin `--force` en ningún paso), proyecto con
-memoria invoca a `sesion-starter`. 145 tests en verde, `ruff check` limpio, y el usuario
-verificó ambos flujos en máquina real sobre una carpeta nueva, incluyendo publicación en
-GitHub e idempotencia. Quedan T-014 a T-017 del orden de construcción (D-028) sin empezar.
+La sesión anterior había implementado y verificado `soda start` (T-013) y `sesion-starter`
+(T-012), primeros dos pasos del orden de construcción D-028. Esta sesión abrió con T-014
+(`state.yaml`) pero derivó en un **pivote de arquitectura** disparado por `transcript.md`
+(video de referencia): `soda` deja de perseguir el modelo "orquestador = script de Python +
+agentes = subprocesos `claude -p` sin estado" (D-024 a D-026) y pasa a un modelo de agente
+orquestador **persistente** (bucle REPL, delega en subagentes), corriendo sobre suscripción
+en vez de API de pago por token (D-035, reabre D-025/D-026/D-028). El pivote no quedó solo
+en discusión: se validó con `ctx7` que el Claude Agent SDK for Python autentica con la
+suscripción sin requerir `ANTHROPIC_API_KEY` (L-014), y se construyeron y verificaron en real
+dos spikes fuera de `src/soda/` (T-018): `scripts/chat.py` (bucle REPL exterior) y
+`scripts/chat_delegacion.py` (bucle interior, delegación a un subagente por convención de
+marcador, con el dato real calculado por Python, no inventado por el modelo). Ambos
+funcionaron sobre la suscripción, verificados en vivo por el usuario en su máquina. `state.yaml`
+(T-014) no se implementó; quedó diseño de avance registrado en su detalle, pero supeditado a
+la reevaluación de T-019, la próxima tarea.
 
 ## Qué sigue
 
-- [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) — `state.yaml`, prerrequisito de `soda step`/`soda status` (D-027). Es más diseño que código: hay que decidir qué campos representan "dónde está un incremento" contra los 11 pasos de `methodology.md` §3, así que probablemente convenga discutirlo antes de escribir código, como se hizo con T-012.
-- [T-015](tasks.md#t-015--soda-status-lectura-del-estado-cero-cuota) — `soda status`, lectura del estado, cero cuota.
-- [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — `soda step`, agentes especializados (D-022).
-- [T-017](tasks.md#t-017--soda-close-invocar-a-sesion-closer) — `soda close`, invoca a `sesion-closer`.
+- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Reevaluar todo el trabajo previo a la luz del pivote (D-035): qué sobrevive (doctrina `_guideline/`, memoria `_persistence/`, `soda init`, `soda start`), qué queda superado (D-025/D-026, interfaz de 5 comandos, `sesion-starter` como invocación de un solo disparo), y definir el nuevo orden de construcción con el REPL/orquestador persistente en el centro; decidir si el bucle interior se construye con el Agent SDK for Python o se mantiene la convención a mano (C-008).
+- El resto del orden de construcción anterior (T-014 a T-017) queda en suspenso, pendiente de lo que resuelva T-019; no se cancela, pero probablemente cambie de forma.
 
 ## Historial de hitos
+
+### 2026-07-23 — Pivote de arquitectura: orquestador persistente tipo REPL sobre suscripción, validado con dos spikes (D-035, T-018)
+
+Sesión que abrió discutiendo T-014 (`state.yaml`) y derivó en un replanteamiento de fondo,
+disparado por `transcript.md`. Se registra D-035: `soda` pivota a un agente orquestador
+persistente (bucle REPL, delega en subagentes) sobre suscripción, no sobre API de pago por
+token; reabre y supera D-025/D-026/D-028 (no se borran, quedan documentadas como diseño
+previo). Verificado con `ctx7` (documentación del Claude Agent SDK for Python) que el SDK
+autentica con la suscripción (OAuth de `claude /login`, sin requerir `ANTHROPIC_API_KEY`) y
+trae bucle agéntico, tools y subagentes de fábrica (L-014); construir el bucle interior a
+mano, como el video, exige la API si no se usa el SDK. Construidos y verificados en real dos
+spikes en `scripts/` (T-018, fuera de producto, C-003): `chat.py` (REPL multi-turno,
+reenviando historial completo) y `chat_delegacion.py` (delegación a un subagente `fecha` vía
+marcador de convención `[[LLAMAR:fecha]]`, con el dato real calculado por Python y modelo por
+agente, `sonnet` decide / `haiku` redacta). Ambos verificados en vivo por el usuario en su
+máquina sobre la suscripción. Se registra C-008 (la convención de marcador es frágil y cada
+delegación cuesta 2 llamadas contra la cuota). T-014 (`state.yaml`) queda sin implementar,
+con el diseño de avance anotado en su detalle pero supeditado a la reevaluación de T-019,
+registrada como próxima tarea.
 
 ### 2026-07-23 — `soda start` y `sesion-starter` implementados y verificados (T-012, T-013)
 

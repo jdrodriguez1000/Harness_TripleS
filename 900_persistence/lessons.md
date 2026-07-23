@@ -17,6 +17,7 @@
 | [L-011](#l-011--un-test-que-consulta-git-puede-leer-la-configuración-global-de-la-máquina) | Un test que consulta git puede leer la configuración global de la máquina | 2026-07-23 |
 | [L-012](#l-012--la-prueba-manual-volvió-a-encontrar-lo-que-la-suite-no-buscaba) | La prueba manual volvió a encontrar lo que la suite no buscaba | 2026-07-23 |
 | [L-013](#l-013--validar-una-url-de-remoto-con-una-regex-estricta-rechaza-remotos-legítimos) | Validar una URL de remoto con una regex estricta rechaza remotos legítimos | 2026-07-23 |
+| [L-014](#l-014--el-agent-sdk-for-python-es-en-la-práctica-la-única-vía-a-un-bucle-agéntico-con-toolssubagentes-estructurados-sobre-suscripción-sin-api) | El Agent SDK for Python es, en la práctica, la única vía a un bucle agéntico con tools/subagentes estructurados sobre suscripción sin API | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -110,3 +111,10 @@
 - **Contexto:** La primera versión de `url_valida()` en `src/soda/start.py` rechazaba rutas locales absolutas, que git acepta perfectamente como remoto y que además son lo que usan los tests como "GitHub falso" (un repositorio local en vez de uno real en la nube).
 - **Lección:** Una validación de URL de remoto solo debe atrapar el error de tecleo obvio (pegar el nombre del repo en vez de su URL), no intentar decidir si el remoto existe o es "de verdad": eso lo dice el `push` y lo dice mejor, con el error real de git.
 - **Aplicación:** Se corrigió la regex en el producto (no en el test) para aceptar también rutas locales absolutas y `file://`, documentando en el propio código por qué la validación es deliberadamente permisiva.
+
+### L-014 — El Agent SDK for Python es, en la práctica, la única vía a un bucle agéntico con tools/subagentes estructurados sobre suscripción sin API
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al evaluar si el bucle interior del modelo del video de referencia (delegación a subagentes con `tool_use` estructurado) se podía construir a mano sobre el CLI `claude -p`, se verificó con `ctx7` la documentación del Claude Agent SDK for Python (`anthropics/claude-agent-sdk-python`), en el marco del pivote de arquitectura (D-035).
+- **Lección:** Hand-rollear el bucle interior con `tool_use` estructurado, como hace el video, exige la API de pago por token. El Agent SDK for Python es prácticamente la única vía a un bucle agéntico con subagentes estructurados que además autentica con la suscripción (OAuth de `claude /login`, no `ANTHROPIC_API_KEY`). Sin el SDK, la delegación a subagentes solo se logra con una convención a mano (marcador de texto), verificada viable pero frágil (T-018, ver C-008).
+- **Aplicación:** Al decidir el nuevo orden de construcción (T-019), evaluar explícitamente si el bucle interior se construye con el Agent SDK for Python o se mantiene la convención a mano. Matiz a no olvidar: el fallback de Keychain visto en el código del SDK es de macOS; en Windows las credenciales salen de `~/.claude/.credentials.json`.

@@ -11,6 +11,7 @@
 | [C-005](#c-005--la-instalación-editable-acopla-el-comando-global-soda-al-repo-en-disco) | La instalación editable acopla el comando global `soda` al repo en disco |
 | [C-006](#c-006--la-cuota-de-suscripción-es-el-presupuesto-real-no-el-dinero) | La cuota de suscripción es el presupuesto real, no el dinero |
 | [C-007](#c-007--claude--p-no-tiene-canal-con-el-humano) | `claude -p` no tiene canal con el humano |
+| [C-008](#c-008--la-delegación-a-subagentes-sin-el-agent-sdk-depende-de-una-convención-de-texto-frágil-y-duplica-el-costo-de-cuota-por-delegación) | La delegación a subagentes sin el Agent SDK depende de una convención de texto frágil y duplica el costo de cuota por delegación |
 
 ## Detalle de restricciones
 
@@ -62,3 +63,10 @@
 - **Descripción:** Un agente lanzado como subproceso (`claude -p "<prompt>"`) recibe un prompt, devuelve texto y muere; no puede preguntar nada al humano a mitad de camino. El script de `soda`, en cambio, tiene stdin/stdout y puede hacer `input()`.
 - **Impacto:** Los gates humanos y todo diálogo con el usuario tienen que vivir en Python, no en un agente, sea cual sea el diseño del orquestador (respalda E-012 en la forma concreta que toma este proyecto). Queda abierto, sin resolver: el Descubridor / `onboarding-interviewer` por definición entrevista al humano en varios turnos y no puede ser un `claude -p` a secas; las opciones esbozadas sin decidir son que Python conduzca la entrevista turno a turno reinvocando con el historial acumulado, o que `ClaudeCLIProvider` gane un modo sesión.
 - **Origen:** Detectado durante la sesión de diseño de la interfaz de comandos, al analizar el bootstrap Git de `soda start` (necesita pedir la URL de GitHub al humano) y la naturaleza del Descubridor.
+
+### C-008 — La delegación a subagentes sin el Agent SDK depende de una convención de texto frágil y duplica el costo de cuota por delegación
+
+- **Tipo:** Técnica / Suscripción
+- **Descripción:** Sin el Agent SDK for Python (ver L-014), delegar en un subagente desde `claude -p` solo se puede señalizar con una convención a mano (marcador de texto, p. ej. `[[LLAMAR:fecha]]`), que depende de que el modelo emita el marcador limpio; no hay `tool_use` estructurado. Además, cada delegación cuesta 2 llamadas al modelo (la sesión principal decide + el subagente redacta).
+- **Impacto:** La convención a mano es viable (verificada en `scripts/chat_delegacion.py`, T-018) pero frágil, y debería robustecerse o sustituirse por el Agent SDK antes de comprometerla en producto. Cada delegación debe contarse como 2 invocaciones contra el presupuesto de cuota (C-006), no como 1.
+- **Origen:** Detectado durante el spike de `scripts/chat_delegacion.py` (T-018), dentro de la sesión que registró el pivote de arquitectura (D-035).

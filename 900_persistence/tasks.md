@@ -21,6 +21,8 @@
 | [T-015](#t-015--soda-status-lectura-del-estado-cero-cuota) | `soda status`: lectura del estado, cero cuota | No implementada |
 | [T-016](#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) | `soda step`: invocar al agente especializado que corresponda | No implementada |
 | [T-017](#t-017--soda-close-invocar-a-sesion-closer) | `soda close`: invocar a `sesion-closer` | No implementada |
+| [T-018](#t-018--spike-bucle-repl-exterior--delegación-a-subagente-sobre-suscripción) | Spike: bucle REPL exterior + delegación a subagente sobre suscripción | Implementada |
+| [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -124,7 +126,7 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Definir el formato mínimo de `_increments/<id>/state.yaml`, hoy listado como pieza `[PENDIENTE]` en `methodology.md` §0.3. Es prerrequisito de `soda step` y `soda status` (D-027): sin él no hay dónde leer de forma determinista en qué punto está un incremento (spec, plan, rojo/verde), y la narrativa en prosa de `tasks.md` no se puede parsear.
-- **Pendiente:** Todo el diseño e implementación.
+- **Pendiente:** Todo el diseño e implementación. Antes de que la sesión pivotara a D-035, se avanzó diseño que conviene no perder para cuando T-019 lo retome: (a) construir y verificar quedan fuera del modelo de `state.yaml` por ahora (bloques `[PENDIENTE]` declarados, no omitidos), porque su contenido lo escribirían agentes de la flota que aún no existen — volver a ellos cuando `soda step` deba ejecutar el paso 8/10 caso por caso, o cuando una interrupción a mitad del paso 8 obligue a releer el código; (b) no se crea un comando `soda increment`: el paso 1 (abrir incremento) lo haría `soda step` cuando no hay incremento abierto, misma figura de dos ramas que `soda start`, y `soda status` anunciaría esa rama; (c) el prototipado no iría en el `state.yaml` del incremento — si acaso llevara estado, sería un archivo aparte (su espina es de 5 pasos con bucle P3↔P4, distinta de los 11 pasos del incremento); se decidió no construirlo ahora; (d) esquema propuesto: 11 pasos de §3, `paso_actual` derivado del disco (no almacenado, para no desincronizar), `veredicto` presente pero desglose por evaluador fuera. Con el pivote a REPL+suscripción (D-035), buena parte de esta discusión queda supeditada a la reevaluación de T-019.
 
 ### T-015 — `soda status`: lectura del estado, cero cuota
 
@@ -145,4 +147,19 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Invoca al agente `sesion-closer`: redacta el hito, decide qué va a `lessons.md` y qué a `decisions.md`, mantiene índices (juicio de redacción, no se hardcodea). El commit y el push los hace Python al final, no el agente.
-- **Pendiente:** Todo el diseño e implementación. Último paso del orden de construcción (D-028).
+- **Pendiente:** Todo el diseño e implementación. Último paso del orden de construcción (D-028), hoy reabierto por D-035; ver T-019.
+
+### T-018 — Spike: bucle REPL exterior + delegación a subagente sobre suscripción
+
+- **Estado:** Implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Validar empíricamente si el modelo del video de referencia (`transcript.md`: bucle REPL, agente orquestador persistente, delegación a subagentes) es viable sobre suscripción (no API de pago por token) antes de comprometer el pivote de arquitectura de `soda` (D-035). Dos spikes exploratorios en `scripts/`, fuera de `src/soda/` (C-003), no producto.
+- **Resultado:** `scripts/chat.py`: REPL interactivo mínimo (bucle exterior), reutiliza `ClaudeCLIProvider` (solo suscripción, sin herramientas), multi-turno reenviando el historial completo cada turno porque `claude -p` es de un solo disparo; sale con `/salir`, `/exit`, `/quit`, Ctrl-D o Ctrl-C. `scripts/chat_delegacion.py`: spike del bucle interior — la sesión principal (`sonnet`) decide por su cuenta delegar en un subagente `fecha` (`haiku`) cuando el humano pide la hora, señalizado con la convención a mano `[[LLAMAR:fecha]]` (`claude -p` no expone `tool_use` estructurado sin el Agent SDK, ver L-014); el dato de fecha/hora lo calcula código Python (`datetime.now`), nunca el LLM, que lo inventaría — el subagente solo lo redacta; demuestra además modelo-por-agente (`sonnet` decide, `haiku` redacta). Ambos compilan, `ruff check` limpio, y el usuario los ejecutó en vivo en su propia máquina: `chat.py` responde en tiempo real sobre la suscripción; `chat_delegacion.py` delega y devuelve la hora real correcta al pedirla, y no delega ante una pregunta normal ("hola", "dime un color").
+- **Pendiente:** No se promovió nada a producto (`src/soda/`) en esta tarea; eso es T-019.
+
+### T-019 — Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Con el pivote registrado en D-035 y validado empíricamente en T-018, reevaluar todo el trabajo previo del harness: qué sobrevive (doctrina `_guideline/`, memoria `_persistence/`, `soda init`, `soda start`), qué queda superado (D-025/D-026 reabiertas, la interfaz de 5 comandos, `sesion-starter` como invocación de un solo disparo vía `claude -p`), y definir el nuevo orden de construcción con el REPL/orquestador persistente en el centro. Incluye decidir si el bucle interior de delegación se construye con el Agent SDK for Python (tools/subagentes estructurados, L-014) o se mantiene la convención a mano validada en T-018 (C-008).
+- **Pendiente:** Todo el diseño. Punto de entrada de la próxima sesión.

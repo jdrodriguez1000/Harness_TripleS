@@ -43,6 +43,7 @@
 | [D-037](#d-037--la-espina-de-control-de-soda-es-híbrida-python-determinista--sesión-llm-persistente-para-el-juicio) | La espina de control de `soda` es híbrida: Python determinista + sesión LLM persistente para el juicio | 2026-07-23 |
 | [D-038](#d-038--la-sesión-persistente-se-encapsula-tras-una-nueva-abstracción-sesion-no-extendiendo-provider) | La sesión persistente se encapsula tras una nueva abstracción `Sesion`, no extendiendo `Provider` | 2026-07-23 |
 | [D-039](#d-039--claude-agent-sdk-pasa-de-extra-spike-a-dependencia-dura-del-producto) | `claude-agent-sdk` pasa de extra `[spike]` a dependencia dura del producto | 2026-07-23 |
+| [D-040](#d-040--el-orquestador-usa-opus-por-el-mismo-criterio-de-d-033-el-trabajo-no-la-importancia) | El orquestador usa `opus`, por el mismo criterio de D-033: el trabajo, no la importancia | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -359,3 +360,11 @@
 - **Decisión:** `claude-agent-sdk` se declara como dependencia dura en `dependencies` de `pyproject.toml`; se elimina el grupo `spike`. Confirmado explícitamente con el usuario antes de tocar `pyproject.toml`.
 - **Alternativas descartadas:** Mantener `claude-agent-sdk` como extra y que `src/soda/core/sesion.py`/`claude_sdk.py` lo importen de forma perezosa/opcional, descartado porque `soda` ya es, desde este pivote (D-035/D-036/D-037), un orquestador construido sobre el SDK: tratarlo como opcional escondería una dependencia que en la práctica siempre hace falta para que el producto funcione.
 - **Consecuencias:** Instalar `soda` instala siempre `claude-agent-sdk`. `scripts/probar_sesion_sdk.py` y los spikes previos de T-020 dejan de depender de un extra separado para funcionar.
+
+### D-040 — El orquestador usa `opus`, por el mismo criterio de D-033: el trabajo, no la importancia
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir T-022 (bucle REPL), había que registrar en `MODELOS` (`src/soda/core/flota.py`) qué modelo usa el nuevo agente `orquestador`, la sesión persistente con la que conversa el humano.
+- **Decisión:** `MODELOS[ORQUESTADOR] = "opus"`. Se mantiene el criterio ya fijado en D-033 (el trabajo que hace el agente, no su importancia): `sesion-starter` resume archivos que ya tiene delante y le basta `haiku`; el orquestador, en cambio, conduce la conversación, sostiene contexto multi-turno y, desde T-023/T-025, decidirá y delegará en subagentes — eso es juicio real, no redacción, y pide el modelo grande.
+- **Alternativas descartadas:** Usar `sonnet` para el orquestador (el modelo intermedio ya usado en los spikes de T-018/T-020 para el rol de "quien decide"), descartado por ahora sin evidencia en contra concreta; queda como candidato a reevaluar si el costo de cuota de `opus` en el REPL persistente resulta desproporcionado en la práctica (C-006).
+- **Consecuencias:** Cambiar el modelo del orquestador sigue siendo editar una línea de `MODELOS` (D-033). No se ha medido consumo de cuota real de una sesión de `opus` persistente; si duele, es una línea de código la que cambia, no el diseño.

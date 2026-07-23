@@ -26,11 +26,14 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+import anyio
+
 from soda.agents.memoria import MemoriaAusenteError, leer_memoria
 from soda.agents.sesion_starter import SesionStarter
 from soda.core import git
-from soda.core.flota import proveedor_para
+from soda.core.flota import ORQUESTADOR, proveedor_de_sesion_para, proveedor_para
 from soda.core.provider import ProviderError
+from soda.repl import correr_repl
 from soda.start import SinCanalConElHumanoError, bootstrap
 from soda.templates import (
     GUIDELINE_DIRNAME,
@@ -276,7 +279,37 @@ def _ejecutar_start(args: argparse.Namespace) -> int:
         print(f"Error: {AGENTE_STARTER} no pudo responder: {exc}", file=sys.stderr)
         return 1
 
-    print(informe)
+    # El informe de reanudación deja de ser el final del comando y pasa a ser el
+    # saludo del REPL: `soda start` ya no imprime y muere, sostiene la
+    # conversación con el orquestador hasta que el humano la cierra (T-022).
+    try:
+        return _conversar(project_root, saludo=informe)
+    except ProviderError as exc:
+        print(f"Error: no se pudo abrir la sesión del orquestador: {exc}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("\nSesión interrumpida.")
+        return 0
+
+
+async def _repl_del_orquestador(project_root: Path, saludo: str) -> None:
+    """Abre la sesión persistente del orquestador y le entrega el bucle REPL.
+
+    La sesión se abre y se cierra aquí (`async with`): `correr_repl` solo la usa.
+    Así el recurso del backend se libera pase lo que pase dentro del bucle.
+    """
+    proveedor = proveedor_de_sesion_para(ORQUESTADOR, project_root)
+    async with proveedor.abrir_sesion() as sesion:
+        await correr_repl(sesion, leer=input, escribir=print, saludo=saludo)
+
+
+def _conversar(project_root: Path, saludo: str) -> int:
+    """Frontera sync→async: enciende el bucle de eventos y corre el REPL.
+
+    `anyio.run` es el mismo arranque validado en el spike de T-021: el SDK vive
+    sobre anyio, y abrir el cliente exige un bucle de eventos vivo.
+    """
+    anyio.run(_repl_del_orquestador, project_root, saludo)
     return 0
 
 

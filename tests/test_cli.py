@@ -16,6 +16,7 @@ from soda.cli import (
     init_persistence,
     main,
 )
+from soda.core.sesion import Sesion
 from soda.templates import (
     GUIDELINE_DIRNAME,
     GUIDELINE_FILENAMES,
@@ -353,3 +354,110 @@ def test_main_sin_subcomando_muestra_ayuda_y_falla(capsys):
 
     assert codigo == 1
     assert "init" in capsys.readouterr().out
+
+
+# --- main start: reanudación + REPL del orquestador (T-022) -----------------
+
+
+class _SesionEco(Sesion):
+    """Doble de sesión inyectado en lugar del cliente real del SDK."""
+
+    def __init__(self):
+        self.turnos: list[str] = []
+
+    async def enviar(self, prompt: str) -> str:
+        self.turnos.append(prompt)
+        return f"eco: {prompt}"
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return None
+
+
+class _ProveedorFalso:
+    def __init__(self, sesion):
+        self._sesion = sesion
+
+    def abrir_sesion(self):
+        return self._sesion
+
+
+class _StarterFalso:
+    """Reemplaza a `SesionStarter`: entrega un informe fijo sin tocar el modelo."""
+
+    def __init__(self, provider):
+        pass
+
+    def informe(self, project_root):
+        return "INFORME DE REANUDACIÓN"
+
+
+def _proyecto_con_memoria(raiz):
+    """Siembra la memoria y la ensucia para que no cuente como vacía."""
+    init_persistence(raiz)
+    persistencia = raiz / PERSISTENCE_DIRNAME
+    (persistencia / "progress.md").write_text(
+        "# Progreso\n\nT-022 en curso\n", encoding="utf-8"
+    )
+    (persistencia / "tasks.md").write_text("# Tareas\n\nT-022\n", encoding="utf-8")
+
+
+@pytest.fixture
+def _entradas(monkeypatch):
+    """Guioniza stdin para el REPL; agota con EOF (fin natural de la entrada)."""
+
+    def instalar(lineas):
+        pendientes = list(lineas)
+
+        def leer(_prompt):
+            if not pendientes:
+                raise EOFError
+            return pendientes.pop(0)
+
+        monkeypatch.setattr("builtins.input", leer)
+
+    return instalar
+
+
+def _instalar_dobles(monkeypatch, sesion):
+    monkeypatch.setattr("soda.cli.SesionStarter", _StarterFalso)
+    monkeypatch.setattr(
+        "soda.cli.proveedor_de_sesion_para",
+        lambda agente, project_root: _ProveedorFalso(sesion),
+    )
+    # `proveedor_para` sigue construyendo el provider del starter, pero el starter
+    # falso lo ignora; basta con que no reviente al recibirlo.
+    monkeypatch.setattr("soda.cli.proveedor_para", lambda agente, project_root: object())
+
+
+def test_start_con_memoria_abre_el_repl_con_el_informe_de_saludo(
+    tmp_path, monkeypatch, capsys, _entradas
+):
+    _proyecto_con_memoria(tmp_path)
+    _instalar_dobles(monkeypatch, _SesionEco())
+    _entradas([])  # sin turnos: el saludo se muestra y el REPL cierra por EOF
+
+    codigo = main(["start", str(tmp_path)])
+    salida = capsys.readouterr().out
+
+    assert codigo == 0
+    assert "INFORME DE REANUDACIÓN" in salida
+    assert "Sesión cerrada." in salida
+
+
+def test_start_pasa_los_turnos_tecleados_a_la_sesion(
+    tmp_path, monkeypatch, capsys, _entradas
+):
+    _proyecto_con_memoria(tmp_path)
+    sesion = _SesionEco()
+    _instalar_dobles(monkeypatch, sesion)
+    _entradas(["hola orquestador", "/salir"])
+
+    codigo = main(["start", str(tmp_path)])
+    salida = capsys.readouterr().out
+
+    assert codigo == 0
+    assert sesion.turnos == ["hola orquestador"]
+    assert "eco: hola orquestador" in salida

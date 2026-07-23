@@ -25,7 +25,7 @@
 | [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | Implementada |
 | [T-020](#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) | Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción | Implementada |
 | [T-021](#t-021--sesión-persistente-detrás-de-provider) | Sesión persistente detrás de `Provider` | Implementada |
-| [T-022](#t-022--bucle-repl-de-soda--canal-con-el-humano) | Bucle REPL de `soda` + canal con el humano | No implementada |
+| [T-022](#t-022--bucle-repl-de-soda--canal-con-el-humano) | Bucle REPL de `soda` + canal con el humano | Implementada |
 | [T-023](#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) | Memoria como tool de lectura + `sesion-starter` portado a la sesión | No implementada |
 | [T-024](#t-024--memoria-como-tool-de-escritura--sesion-closer) | Memoria como tool de escritura + `sesion-closer` | No implementada |
 | [T-025](#t-025--descubridor-como-subagente-agentdefinition) | `Descubridor` como subagente `AgentDefinition` | No implementada |
@@ -191,10 +191,12 @@
 
 ### T-022 — Bucle REPL de `soda` + canal con el humano
 
-- **Estado:** No implementada
+- **Estado:** Implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Paso 2 del nuevo orden de construcción. Enciende la sesión persistente resuelta en T-021, lee stdin y escribe stdout, mantiene la sesión viva entre turnos, y cierra la parte de C-007 que seguía abierta (canal con el humano para gates y diálogo).
-- **Pendiente:** Todo el diseño e implementación. Depende de T-021.
+- **Resultado:** `src/soda/core/flota.py`: nuevo agente `ORQUESTADOR` (`MODELOS[ORQUESTADOR] = "opus"`, criterio D-033 sin cambiar: el orquestador razona y decide, a diferencia de `sesion-starter` que resume en `haiku`), constante `PROMPT_ORQUESTADOR` (system prompt mínimo, solo idioma/tono, ampliable en T-023/T-025) y `proveedor_de_sesion_para(agente, project_root) -> ClaudeSDKProvider`, hermana de `proveedor_para` pero para el contrato `Sesion` (D-038). `src/soda/repl.py` (nuevo): `correr_repl(sesion, leer, escribir, saludo)`, bucle async sobre una `Sesion` ya abierta, con el mismo patrón inyectable `leer`/`escribir` que ya usaba `soda.start` (facilita testear sin bloquear en `input()`); cierra por `/salir`/`/exit`/`/quit`, por EOF (`EOFError`) o por Ctrl-C (`KeyboardInterrupt`), ignora líneas en blanco, y un `ProviderError` en un turno se reporta sin tumbar el bucle (el contexto acumulado sobrevive). Cierra la parte de C-007 que seguía abierta para el orquestador. `src/soda/cli.py`: `_ejecutar_start` deja de imprimir el informe de `sesion-starter` y terminar; ese informe pasa a ser el `saludo` del REPL. Nuevas `_conversar` (frontera sync→async con `anyio.run`, mismo patrón validado en el spike de T-021) y `_repl_del_orquestador` (abre/cierra la `Sesion` con `async with` y le entrega el bucle). `pyproject.toml`: `anyio` pasa a dependencia directa (antes solo llegaba transitivamente vía `claude-agent-sdk`, ver L-019). Tests nuevos `tests/test_repl.py` y `tests/test_flota.py`; `tests/test_cli.py` ampliado con el flujo `start` → REPL con dobles. `scripts/probar_repl.py` (spike de verificación en vivo, C-003, no producto).
+- **Verificación decisiva:** verificada DOS veces sobre la suscripción real (`opus`, sin `ANTHROPIC_API_KEY`). (1) Por el spike: un dato dado en el turno 1 ("Juan", "verde") se recordó en el turno 2; `/salir` cerró limpio. (2) Por el usuario en vivo con el producto real (`soda init` + `soda start` en un proyecto de prueba nuevo): `sesion-starter` dio el informe de reanudación, el REPL se abrió con ese informe como saludo, y el orquestador recordó "Tampa" entre turnos. Suite en 178 tests verdes (antes 157), `ruff` limpio; `Provider.send` y `SesionStarter` quedan intactos (D-038).
+- **Nota para T-023:** durante el spike (con `cwd` apuntando a este mismo repo), el orquestador con `ToolSearch` + `bypassPermissions` encontró `900_persistence/` y comentó por su cuenta el estado del proyecto y los cambios sin commitear. No es un fallo de T-022 (el canal y el contexto se probaban y funcionan): confirma que darle a la sesión las tools y el prompt de orquestación reales es justo el alcance de T-023/T-024, y que hoy el system prompt del orquestador es deliberadamente mínimo.
 
 ### T-023 — Memoria como tool de lectura + `sesion-starter` portado a la sesión
 

@@ -7,23 +7,54 @@
 
 ## Estado actual
 
-T-021 completada y verificada en vivo: paso 1 del nuevo orden de construcción (T-019,
-D-037). Nueva abstracción async `Sesion` en `src/soda/core/sesion.py` (simétrica a
-`Provider`, para el contrato multi-turno) y `SesionClaudeSDK`/`ClaudeSDKProvider` en
-`src/soda/providers/claude_sdk.py`, que envuelven un `ClaudeSDKClient` vivo reusado entre
-turnos. `claude-agent-sdk` pasó de extra `[spike]` a dependencia dura (D-039): `soda` ya ES
-un orquestador sobre el SDK, no un usuario opcional de él. Verificado en real por el usuario
-sobre su suscripción: 3 turnos consecutivos manteniendo contexto (recordó un nombre y un
-color dados solo en el primer turno), sin `ANTHROPIC_API_KEY`. Suite en 157 tests verdes
-(antes 145), `ruff` limpio. Queda resuelta la fundación que el bucle REPL (T-022) necesita.
+T-022 completada y verificada en vivo DOS veces sobre suscripción real: paso 2 del nuevo
+orden de construcción (T-019, D-037). `soda start` ya no imprime el informe de
+`sesion-starter` y muere: ese informe pasa a ser el saludo de un bucle REPL nuevo
+(`src/soda/repl.py`, `correr_repl`) que abre una `Sesion` de `ClaudeSDKProvider` con el nuevo
+agente `ORQUESTADOR` (modelo `opus`, D-033 sin cambiar de criterio) y mantiene el contexto
+vivo entre turnos hasta `/salir`/EOF/Ctrl-C. Cierra la parte de C-007 que seguía abierta
+(canal con el humano). Verificado por el usuario en el producto real (`soda init` + `soda
+start` en proyecto nuevo): el orquestador recordó un dato ("Tampa") entre turnos tras el
+informe de reanudación. Suite en 178 tests verdes (antes 157), `ruff` limpio. Hallazgo de
+alcance para T-023: el orquestador con tools reales encontró por su cuenta `900_persistence/`
+del repo anfitrión durante el spike y comentó el estado del proyecto sin que se lo pidieran —
+confirma que el system prompt/tools de orquestación real son justo el trabajo de T-023/T-024.
 
 ## Qué sigue
 
-- [T-022](tasks.md#t-022--bucle-repl-de-soda--canal-con-el-humano) — Bucle REPL de `soda` + canal con el humano, sobre la `Sesion` ya resuelta en T-021. Próximo paso a ejecutar.
-- [T-023](tasks.md#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: memoria como tool de lectura/escritura con `sesion-starter`/`sesion-closer` portados, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
+- [T-023](tasks.md#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) — Memoria como tool de lectura + `sesion-starter` portado a la sesión, sobre el REPL ya resuelto en T-022. Próximo paso a ejecutar.
+- [T-024](tasks.md#t-024--memoria-como-tool-de-escritura--sesion-closer) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: memoria como tool de escritura con `sesion-closer` portado, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
 - [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) a [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — Maquinaria del incremento (MVP en adelante), diferida hasta después del gate de madurez (T-027).
 
 ## Historial de hitos
+
+### 2026-07-23 — T-022 completada y verificada en vivo: bucle REPL de `soda` + canal con el humano
+
+Paso 2 del nuevo orden de construcción (T-019, D-037), sobre la fundación de T-021.
+`src/soda/core/flota.py`: nuevo agente `ORQUESTADOR` en `MODELOS` (`opus`, porque razona y
+decide, a diferencia de `sesion-starter` que resume en `haiku`), `PROMPT_ORQUESTADOR`
+(system prompt mínimo, solo idioma/tono, ampliable en T-023/T-025) y
+`proveedor_de_sesion_para(agente, project_root) -> ClaudeSDKProvider`, hermana de
+`proveedor_para` para el contrato `Sesion` (D-038). `src/soda/repl.py` nuevo:
+`correr_repl(sesion, leer, escribir, saludo)`, bucle async con el mismo patrón inyectable
+`leer`/`escribir` que ya usaba `soda.start`; cierra por `/salir`/`/exit`/`/quit`, EOF o
+Ctrl-C, ignora líneas en blanco, y un `ProviderError` en un turno se reporta sin tumbar el
+bucle. `src/soda/cli.py`: `_ejecutar_start` entrega el informe de `sesion-starter` como
+saludo del REPL en vez de imprimirlo y terminar; nuevas `_conversar` (frontera sync→async con
+`anyio.run`) y `_repl_del_orquestador` (abre/cierra la `Sesion` con `async with`). Se
+registra L-019: `anyio` se declara como dependencia directa en `pyproject.toml` porque
+`cli.py` lo importa directo, aunque hoy llegue transitivamente vía `claude-agent-sdk`
+(descubierto porque el `soda` global instalado con pipx, en un entorno distinto al `.venv`,
+falló con `ModuleNotFoundError: No module named 'anyio'`). Verificación decisiva DOBLE sobre
+suscripción real, sin `ANTHROPIC_API_KEY`: (1) spike (`scripts/probar_repl.py`), dato dado en
+el turno 1 recordado en el turno 2, `/salir` cierra limpio; (2) el usuario en vivo con el
+producto real (`soda init` + `soda start` en proyecto de prueba nuevo), informe de
+`sesion-starter` como saludo y el orquestador recordando "Tampa" entre turnos. Suite en 178
+tests verdes (antes 157), `ruff` limpio; `Provider.send`/`SesionStarter` intactos (D-038).
+Hallazgo de alcance anotado en el detalle de T-022 para no perderlo: con tools reales
+(`ToolSearch`+`bypassPermissions`), el orquestador exploró por su cuenta `900_persistence/`
+del repo anfitrión del spike y comentó su estado sin que se lo pidieran — confirma que dar a
+la sesión las tools y el prompt de orquestación reales es el alcance de T-023/T-024.
 
 ### 2026-07-23 — T-021 completada y verificada en vivo: sesión persistente `ClaudeSDKClient` detrás de una nueva abstracción `Sesion` (D-038, D-039)
 

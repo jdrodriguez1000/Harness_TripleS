@@ -11,7 +11,10 @@ requires-python = ">=3.12"
 authors = [{ name = "jdrodriguez1000" }]
 # El Agent SDK es dependencia dura desde T-021: `soda` es un orquestador REPL
 # persistente sobre suscripción (D-035/D-036), construido sobre `ClaudeSDKClient`.
-dependencies = ["claude-agent-sdk"]
+# `anyio` se declara aparte porque `soda.cli` lo importa directo para la frontera
+# sync→async del REPL (T-022): hoy lo arrastra el Agent SDK, pero depender de eso
+# es frágil —si el SDK dejara de usarlo, `soda` se rompería—, así que se fija aquí.
+dependencies = ["claude-agent-sdk", "anyio"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]

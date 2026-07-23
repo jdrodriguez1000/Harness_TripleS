@@ -22,6 +22,7 @@
 | [L-016](#l-016--el-agent-sdk-exige-permission_mode-y-toolsearch-explícitos-para-que-la-delegación-no-se-corte) | El Agent SDK exige `permission_mode` y `ToolSearch` explícitos para que la delegación no se corte | 2026-07-23 |
 | [L-017](#l-017--la-herramienta-de-delegación-a-subagentes-cambia-de-nombre-según-el-build-del-cli) | La herramienta de delegación a subagentes cambia de nombre según el build del CLI | 2026-07-23 |
 | [L-018](#l-018--el-agent-sdk-mergea-el-entorno-del-subproceso-no-permite-borrar-una-variable-heredada) | El Agent SDK mergea el entorno del subproceso: no permite borrar una variable heredada | 2026-07-23 |
+| [L-019](#l-019--declarar-como-dependencia-directa-lo-que-se-importa-directo-aunque-hoy-llegue-transitivamente) | Declarar como dependencia directa lo que se importa directo, aunque hoy llegue transitivamente | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -151,3 +152,10 @@
 - **Contexto:** Al construir `ClaudeSDKProvider` (T-021), había que forzar suscripción (D-031) neutralizando `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` como ya hacía `ClaudeCLIProvider` sobre `subprocess.run`, pero pasando por `ClaudeAgentOptions.env` en vez de construir el entorno del subproceso a mano.
 - **Lección:** El Claude Agent SDK arma el entorno del subproceso como `{**os.environ, **options.env}` (mergea sobre el entorno heredado); no existe forma de "eliminar" una variable ya presente pasando `options.env`, porque el merge nunca la quita, solo puede sobreescribir su valor. Verificado en la fuente del SDK (`_internal/transport/subprocess_cli.py`) y confirmado en vivo.
 - **Aplicación:** Para neutralizar una variable de entorno heredada al usar el Agent SDK, hay que sobrescribirla a cadena vacía (`""`) en `options.env`, no intentar borrarla del diccionario; el CLI subyacente trata la cadena vacía como ausencia de credencial. Cualquier código futuro que arme `ClaudeAgentOptions.env` para excluir una variable del entorno debe seguir este mismo patrón.
+
+### L-019 — Declarar como dependencia directa lo que se importa directo, aunque hoy llegue transitivamente
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir T-022 (bucle REPL), `src/soda/cli.py` empezó a importar `anyio` directamente para la frontera sync→async (`anyio.run`), pero `anyio` no estaba en `dependencies` de `pyproject.toml`: solo llegaba de rebote porque `claude-agent-sdk` lo arrastra como dependencia suya. Los tests en el `.venv` del repo pasaron sin problema (ahí `anyio` ya estaba instalado transitivamente), pero el `soda` global instalado con pipx en un entorno distinto falló con `ModuleNotFoundError: No module named 'anyio'` al correr `soda init`, hasta reinstalar con `pip install -e ".[dev]"`.
+- **Lección:** Que un módulo esté disponible en el entorno de desarrollo no prueba que esté declarado como dependencia; si llega solo transitivamente vía otra librería, cualquier cambio futuro en esa librería (o cualquier entorno de instalación distinto al que se probó primero) puede romper el import sin ningún aviso previo.
+- **Aplicación:** Todo módulo que el código de producto (`src/soda/`) importe directamente debe declararse en `dependencies` de `pyproject.toml`, sin importar si hoy llega gratis por una dependencia transitiva. Detectarlo requiere probar la instalación en un entorno distinto del que se usó para desarrollar (aquí, el `soda` global de pipx, no el `.venv` del repo), en la línea de L-004.

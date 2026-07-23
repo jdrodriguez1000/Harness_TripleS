@@ -4,7 +4,37 @@
 
 | Código | Título |
 |--------|--------|
+| [C-001](#c-001--separación-estricta-entre-construir-el-harness-y-usar-el-harness) | Separación estricta entre "construir el harness" y "usar el harness" |
+| [C-002](#c-002--_persistence-siempre-relativo-a-un-project_root-explícito) | `_persistence/` siempre relativo a un `project_root` explícito |
+| [C-003](#c-003--frontera-física-del-repo-srcsoda-es-el-producto-la-raíz-es-andamiaje) | Frontera física del repo: `src/soda/` es el producto, la raíz es andamiaje |
+| [C-004](#c-004--no-confundir-agentes-del-harness-con-agentes-de-claude-code-de-este-repo) | No confundir agentes del harness con agentes de Claude Code de este repo |
 
 ## Detalle de restricciones
 
-_(vacío)_
+### C-001 — Separación estricta entre "construir el harness" y "usar el harness"
+
+- **Tipo:** Técnica
+- **Descripción:** Existen dos mundos separados: (1) construir el harness, que es este repo, con memoria en `900_persistence/`; (2) usar el harness sobre una app destino, que es otro repo, con memoria en `_persistence/`.
+- **Impacto:** El código de `src/soda/` nunca debe leer ni escribir `900_persistence/`. Si lo hace, es un bug a corregir de inmediato.
+- **Origen:** Definido explícitamente al planificar la arquitectura durante esta sesión.
+
+### C-002 — `_persistence/` siempre relativo a un `project_root` explícito
+
+- **Tipo:** Técnica
+- **Descripción:** La carpeta `_persistence/` de un proyecto destino nunca es una ruta fija ni se asume relativa al directorio actual de ejecución implícitamente.
+- **Impacto:** Toda función del harness que trabaje con `_persistence/` debe recibir `project_root` como parámetro explícito.
+- **Origen:** Definido al diseñar el modelo de distribución (ver D-003).
+
+### C-003 — Frontera física del repo: `src/soda/` es el producto, la raíz es andamiaje
+
+- **Tipo:** Técnica
+- **Descripción:** Todo lo que está bajo `src/soda/` es el producto que se distribuye; todo lo que está en la raíz del repo (`900_persistence/`, `idea.md`, `CLAUDE.md`, `transcript.md`) es andamiaje de construcción y no forma parte del paquete instalable.
+- **Impacto:** Ningún archivo de la raíz debe importarse ni empaquetarse dentro de `soda`; mantiene limpia la distinción entre el proyecto que construye y el producto construido.
+- **Origen:** Definido al establecer la estructura del proyecto (T-001).
+
+### C-004 — No confundir agentes del harness con agentes de Claude Code de este repo
+
+- **Tipo:** Técnica
+- **Descripción:** Los agentes que el harness `soda` orquestará en tiempo de ejecución (`sesion-starter`, `agent-worker`, `sesion-closer`) son conceptualmente distintos de los agentes de Claude Code usados para construir este repo (`harness-starter`, `harness-closer`), aunque cumplan roles análogos.
+- **Impacto:** Evitar mezclar nombres, prompts o configuración entre ambos conjuntos de agentes al diseñar `soda`.
+- **Origen:** Aclarado explícitamente durante la planificación de esta sesión.

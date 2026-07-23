@@ -191,12 +191,13 @@ python scripts/probar_provider.py --archivo prompt_largo.txt --timeout 120
 src/soda/            El producto: lo que se instala y distribuye
   core/provider.py     Contrato abstracto Provider
   providers/           Implementaciones concretas (ClaudeCLIProvider)
-  templates/           Plantillas que `soda init` siembra
+  templates/           Plantillas que viajan al proyecto destino
+    _persistence/        Los seis archivos de memoria (los siembra `soda init`)
+    _guideline/          Comportamiento de los agentes y metodología de construcción
   cli.py               CLI: `soda` y sus subcomandos
 tests/               Suite automatizada
 scripts/             Pruebas manuales (andamiaje, no se distribuye)
 900_persistence/     Memoria de construcción de ESTE repo
-905_guideline/       Principios de comportamiento de los agentes
 idea.md              Alcance y visión del proyecto
 CLAUDE.md            Protocolos de sesión para el asistente
 ```

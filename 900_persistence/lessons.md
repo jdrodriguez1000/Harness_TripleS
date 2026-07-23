@@ -9,6 +9,8 @@
 | [L-003](#l-003--al-diagnosticar-manejo-de-texto-en-windows-descartar-primero-la-herramienta-de-diagnóstico) | Al diagnosticar manejo de texto en Windows, descartar primero la herramienta de diagnóstico | 2026-07-23 |
 | [L-004](#l-004--verificar-el-empaquetado-instalando-en-un-entorno-limpio-no-solo-listando-el-wheel) | Verificar el empaquetado instalando en un entorno limpio, no solo listando el wheel | 2026-07-23 |
 | [L-005](#l-005--la-prueba-manual-encuentra-defectos-que-los-tests-no-buscan) | La prueba manual encuentra defectos que los tests no buscan | 2026-07-23 |
+| [L-006](#l-006--un-documento-heredado-de-otro-proyecto-arrastra-referencias-colgantes) | Un documento heredado de otro proyecto arrastra referencias colgantes | 2026-07-23 |
+| [L-007](#l-007--un-archivo-importante-puede-llevar-sesiones-sin-estar-en-git) | Un archivo importante puede llevar sesiones sin estar en git | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -46,3 +48,17 @@
 - **Contexto:** Corrida manual real de `soda init` en T-005, con la suite automatizada ya en verde.
 - **Lección:** La prueba manual reveló un defecto cosmético ("1 creados", falta de concordancia de número en el resumen) que ningún test cubría porque nadie había pensado en ese caso.
 - **Aplicación:** Mantener la prueba manual como paso de verificación aunque la suite esté verde; sirve para descubrir qué falta testear, no solo para confirmar lo que ya se testeó.
+
+### L-006 — Un documento heredado de otro proyecto arrastra referencias colgantes
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al revisar `methodology.md` durante T-007, se encontraron citas a `L-015` y `L-022`, lecciones de otro proyecto que no existen en este repo (`lessons.md` va de L-001 a L-005) ni existirán en el destino, además de inconsistencias de ruta (`_template/` vs `_templates/`).
+- **Lección:** Un documento de guía heredado de otro proyecto arrastra referencias colgantes (códigos inexistentes, rutas inconsistentes) que solo se detectan contrastándolo contra el repo real, no leyéndolo de corrido.
+- **Aplicación:** Antes de dar por bueno un documento heredado, verificar cada referencia a código o ruta contra el estado real del repo destino; donde el código no exista, conservar la narrativa del hallazgo y quitar el código colgante en vez de dejarlo apuntando a la nada.
+
+### L-007 — Un archivo importante puede llevar sesiones sin estar en git
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al mudar `905_guideline/` con `git mv` (T-008), `git status` reveló que `methodology.md` (876 líneas) aparecía como untracked: nunca había sido versionado, pese a llevar sesiones existiendo en el repo.
+- **Lección:** Un archivo puede llevar sesiones de trabajo sin estar bajo control de versiones sin que nadie lo note; un `git clean` en cualquier momento lo habría borrado sin aviso.
+- **Aplicación:** Revisar `git status` (no solo `git diff`) al tocar cualquier carpeta antigua o heredada, y tratar cualquier archivo untracked inesperado como una alerta a resolver antes de seguir, no como ruido a ignorar.

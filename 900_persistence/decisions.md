@@ -17,6 +17,9 @@
 | [D-011](#d-011--init-es-no-destructivo-por-defecto-con-relleno-parcial-y---force-para-sobrescribir) | `init` es no destructivo por defecto, con relleno parcial, y `--force` para sobrescribir | 2026-07-23 |
 | [D-012](#d-012--init-solo-siembra-los-seis-archivos-de-memoria-no-crea-claudemd-ni-toca-gitignore) | `init` solo siembra los seis archivos de memoria; no crea `CLAUDE.md` ni toca `.gitignore` | 2026-07-23 |
 | [D-013](#d-013--init-crea-_persistence-pero-exige-que-project_root-ya-exista) | `init` crea `_persistence/` pero exige que `project_root` ya exista | 2026-07-23 |
+| [D-014](#d-014--principlesmd-y-methodologymd-son-producto-no-andamiaje-mudados-a-srcsodatemplates_guideline) | `principles.md` y `methodology.md` son producto, no andamiaje; mudados a `src/soda/templates/_guideline/` | 2026-07-23 |
+| [D-015](#d-015--los-códigos-de-principlesmd-son-identificadores-permanentes-de-3-dígitos) | Los códigos de `principles.md` son identificadores permanentes de 3 dígitos | 2026-07-23 |
+| [D-016](#d-016--los-predicados-de-conformidad-se-escriben-solo-contra-evidencia-disponible-hoy) | Los predicados de conformidad se escriben solo contra evidencia disponible hoy | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -123,3 +126,27 @@
 - **Decisión:** `init` crea `_persistence/` si falta, pero falla con `NotADirectoryError` si `project_root` no existe o no es un directorio.
 - **Alternativas descartadas:** Crear también `project_root` si no existe, descartado porque sembrar memoria dentro de un proyecto es el trabajo de `init`, pero crear un árbol de directorios completo a partir de una ruta mal tecleada es cómo se termina sembrando memoria en un destino equivocado.
 - **Consecuencias:** Un typo en `project_root` falla ruidosamente (exit 1, mensaje accionable) en vez de crear silenciosamente una carpeta nueva no intencionada.
+
+### D-014 — `principles.md` y `methodology.md` son producto, no andamiaje; mudados a `src/soda/templates/_guideline/`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** `principles.md` y `methodology.md` vivían en `905_guideline/` en la raíz del repo. El usuario confirmó explícitamente que ambos documentos viajan con `soda` al proyecto destino (se instalan como `_guideline/`), no son andamiaje de construcción de este repo.
+- **Decisión:** Mudar ambos archivos con `git mv` a `src/soda/templates/_guideline/`, junto al resto de plantillas del paquete (`_persistence/`).
+- **Alternativas descartadas:** Dejarlos en la raíz como andamiaje, descartado porque contradice su naturaleza real de producto y no encaja con C-003 (frontera producto/andamiaje).
+- **Consecuencias:** No hizo falta tocar `pyproject.toml` (`packages = ["src/soda"]` ya arrastra los `.md`). Verificado con wheel instalado en venv limpio. Deja abierta T-009 (sembrar `_guideline/` en el destino), que hoy nadie ejecuta.
+
+### D-015 — Los códigos de `principles.md` son identificadores permanentes de 3 dígitos
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al reorganizar `principles.md` por audiencia (T-007), había que decidir si los códigos (`P-`, `E-`, `NC-`) se renumeran según su nueva posición en el documento o se conservan.
+- **Decisión:** Los códigos son identificadores permanentes que no cambian aunque el ítem cambie de sección, misma convención que `T-`/`L-`/`D-` de `900_persistence`. Se pasó la numeración a 3 dígitos.
+- **Alternativas descartadas:** Renumerar según la nueva ubicación por audiencia, descartado porque habría invalidado las 44 referencias cruzadas ya existentes en `methodology.md`.
+- **Consecuencias:** Permitió reorganizar el documento por audiencia sin invalidar ninguna de las 44 referencias de `methodology.md`; solo hubo que rellenar ceros y remapear las 3 referencias a NC-6 (retirada) hacia NC-001.
+
+### D-016 — Los predicados de conformidad se escriben solo contra evidencia disponible hoy
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al reescribir NC-005 y otras reglas verificables de `principles.md`, surgió la tentación de describir predicados que requieren infraestructura que no existe (motor de traza, umbral de ventana de contexto cuantificado, cuota medida).
+- **Decisión:** Los predicados de conformidad se escriben solo contra evidencia disponible hoy (artefactos en disco + git log); lo que requiere infraestructura futura se declara como pendiente con gatillo explícito (§5 de `principles.md`), no se escribe como si ya aplicara.
+- **Alternativas descartadas:** Escribir predicados aspiracionales asumiendo infraestructura futura, descartado porque produce reglas que ningún agente puede cumplir verificablemente hoy — el mismo defecto que `methodology.md` confiesa en su §10.2 (perfiles de conformidad vivos en prompts sin que nadie los ejecutara).
+- **Consecuencias:** `principles.md` §5 lista explícitamente los pendientes declarados (motor de traza, umbral de ventana de contexto, cuota cuantificada); `methodology.md` no aplica todavía esta disciplina de forma consistente (queda como parte de T-010).

@@ -9,6 +9,7 @@
 | [C-003](#c-003--frontera-física-del-repo-srcsoda-es-el-producto-la-raíz-es-andamiaje) | Frontera física del repo: `src/soda/` es el producto, la raíz es andamiaje |
 | [C-004](#c-004--no-confundir-agentes-del-harness-con-agentes-de-claude-code-de-este-repo) | No confundir agentes del harness con agentes de Claude Code de este repo |
 | [C-005](#c-005--la-instalación-editable-acopla-el-comando-global-soda-al-repo-en-disco) | La instalación editable acopla el comando global `soda` al repo en disco |
+| [C-006](#c-006--la-cuota-de-suscripción-es-el-presupuesto-real-no-el-dinero) | La cuota de suscripción es el presupuesto real, no el dinero |
 
 ## Detalle de restricciones
 
@@ -46,3 +47,10 @@
 - **Descripción:** `soda` está instalado con `pipx install -e <ruta del repo>` (D-003, T-006). Si `Harness_TripleS` se mueve, renombra o borra, el comando `soda` deja de funcionar. Además, un bug introducido en `src/soda/cli.py` afecta de inmediato al `soda` instalado globalmente.
 - **Impacto:** Es el precio correcto durante la construcción del harness. La suite de tests es la única protección contra regresiones que se propagan de inmediato al comando global. Cuando el harness se estabilice, conviene reinstalar sin `-e` para desacoplarlo.
 - **Origen:** Verificación manual de T-006, confirmando que `soda.cli.__file__` resuelve dentro de `src/` del repo.
+
+### C-006 — La cuota de suscripción es el presupuesto real, no el dinero
+
+- **Tipo:** Suscripción
+- **Descripción:** El arnés corre sobre suscripciones (CLIs oficiales como `claude`, `codex`), no sobre API de pago por token (`idea.md`). El recurso escaso es la ventana de cuota con límite de tasa, no el costo en tokens.
+- **Impacto:** Toda decisión de diseño que multiplique invocaciones de agente (por ejemplo, paralelizar subagentes) debe justificarse contra la cuota disponible, no contra el costo en tokens. Obligó a reescribir E-007 de `principles.md` (paralelización condicionada, default secuencial) y a crear E-014 (presupuesto de sesión y límite de pérdida).
+- **Origen:** Detectado al revisar E-007 de `principles.md` durante T-007: la recomendación original de 3-5 subagentes en paralelo venía de research sobre API de pago por token, incompatible con el modelo de suscripción del proyecto.

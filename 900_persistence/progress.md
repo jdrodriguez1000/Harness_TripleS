@@ -14,17 +14,36 @@ de forma no destructiva, con relleno parcial idempotente y `--force` para sobres
 Verificado con 57 tests automatizados (`pytest`, `ruff` limpio), con instalación en venv
 limpio, y con pruebas manuales reales incluyendo rutas con caracteres no ASCII. La capa de
 proveedores (`Provider` + `ClaudeCLIProvider`) sigue funcionando de extremo a extremo desde
-la sesión anterior. Se creó `README.md` en la raíz documentando instalación y uso. Queda
-pendiente resolver las contradicciones de `905_guideline/principles.md` (T-007) antes de
-escribir el primer prompt de agente del harness; no hay agentes propios de `soda` todavía.
+la sesión anterior. T-007 quedó resuelta: `principles.md` y `methodology.md` se mudaron de
+`905_guideline/` (raíz, andamiaje) a `src/soda/templates/_guideline/` (producto, T-008) y
+`principles.md` se reescribió por audiencia (384 líneas) resolviendo sus 8 contradicciones
+internas, con `methodology.md` resincronizado a los nuevos códigos. Los documentos viajan
+dentro del paquete instalado pero todavía no los siembra ningún comando en el proyecto
+destino (T-009), y `methodology.md` sigue teniendo defectos de fondo no resueltos (T-010).
+No hay agentes propios de `soda` todavía.
 
 ## Qué sigue
 
-- [T-007](tasks.md#t-007--actualizar-905_guidelineprinciplesmd-antes-de-escribir-el-primer-agente) — Actualizar `905_guideline/principles.md`; BLOQUEANTE antes de escribir el primer prompt de agente del harness
-- Queda sobre la mesa, sin comprometer, la alternativa de implementar `CodexCLIProvider` antes de avanzar con agentes; se priorizó primero la ruta hacia `soda init` (ya cerrada) y ahora `905_guideline/principles.md`.
-- Sin tareas registradas todavía para el diseño de los agentes propios del harness (`sesion-starter`, `agent-worker`, `sesion-closer`); depende de que T-007 quede resuelta primero.
+- [T-009](tasks.md#t-009--soda-init-debe-sembrar-_guideline-en-el-proyecto-destino) — `soda init` debe sembrar `_guideline/` en el proyecto destino; nota: tal como está planteada contradice D-012, hay que revisar esa decisión primero
+- [T-010](tasks.md#t-010--revisión-de-fondo-de-methodologymd) — Revisión de fondo de `methodology.md` (883 líneas): normativo vs. diferido, gatillo de división ya disparado, backlog de referencias hacia adelante, tensión con E-004
+- Queda sobre la mesa, sin comprometer, la alternativa de implementar `CodexCLIProvider` antes de avanzar con agentes.
+- Sin tareas registradas todavía para el diseño de los agentes propios del harness (`sesion-starter`, `agent-worker`, `sesion-closer`); depende de que T-009/T-010 avancen o se decida posponerlas.
 
 ## Historial de hitos
+
+### 2026-07-23 — `905_guideline` mudado a producto y `principles.md` reescrito por audiencia (T-007, T-008)
+
+`905_guideline/` (andamiaje en la raíz) se mudó con `git mv` a
+`src/soda/templates/_guideline/` (producto, viaja con `soda`), verificado instalando el
+wheel en venv limpio. `principles.md` pasó de 125 a 384 líneas: reorganizado en tres
+secciones por audiencia (diseño del arnés, operación del orquestador, reglas de ejecución
+del agente), resolviendo los 8 puntos pendientes de T-007 (paralelización condicionada al
+presupuesto de cuota, umbral de escalado al orquestador, evidencia proporcional por tipo de
+artefacto, señales externas para el context reset, presupuesto de sesión, frontera de
+operaciones destructivas, precedencia humano > NC > P > E, códigos a 3 dígitos permanentes).
+`methodology.md` (883 líneas, hallado sin versionar) se resincronizó con los nuevos códigos
+y se corrigieron typos y referencias colgantes. Se registran D-014 a D-016, L-006, L-007 y
+C-006. Se detectaron y registran como tareas nuevas T-009 y T-010.
 
 ### 2026-07-23 — `soda init` funcional y publicado en el PATH vía pipx
 

@@ -8,6 +8,7 @@
 | [C-002](#c-002--_persistence-siempre-relativo-a-un-project_root-explícito) | `_persistence/` siempre relativo a un `project_root` explícito |
 | [C-003](#c-003--frontera-física-del-repo-srcsoda-es-el-producto-la-raíz-es-andamiaje) | Frontera física del repo: `src/soda/` es el producto, la raíz es andamiaje |
 | [C-004](#c-004--no-confundir-agentes-del-harness-con-agentes-de-claude-code-de-este-repo) | No confundir agentes del harness con agentes de Claude Code de este repo |
+| [C-005](#c-005--la-instalación-editable-acopla-el-comando-global-soda-al-repo-en-disco) | La instalación editable acopla el comando global `soda` al repo en disco |
 
 ## Detalle de restricciones
 
@@ -38,3 +39,10 @@
 - **Descripción:** Los agentes que el harness `soda` orquestará en tiempo de ejecución (`sesion-starter`, `agent-worker`, `sesion-closer`) son conceptualmente distintos de los agentes de Claude Code usados para construir este repo (`harness-starter`, `harness-closer`), aunque cumplan roles análogos.
 - **Impacto:** Evitar mezclar nombres, prompts o configuración entre ambos conjuntos de agentes al diseñar `soda`.
 - **Origen:** Aclarado explícitamente durante la planificación de esta sesión.
+
+### C-005 — La instalación editable acopla el comando global `soda` al repo en disco
+
+- **Tipo:** Entorno
+- **Descripción:** `soda` está instalado con `pipx install -e <ruta del repo>` (D-003, T-006). Si `Harness_TripleS` se mueve, renombra o borra, el comando `soda` deja de funcionar. Además, un bug introducido en `src/soda/cli.py` afecta de inmediato al `soda` instalado globalmente.
+- **Impacto:** Es el precio correcto durante la construcción del harness. La suite de tests es la única protección contra regresiones que se propagan de inmediato al comando global. Cuando el harness se estabilice, conviene reinstalar sin `-e` para desacoplarlo.
+- **Origen:** Verificación manual de T-006, confirmando que `soda.cli.__file__` resuelve dentro de `src/` del repo.

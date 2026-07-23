@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "soda"
 version = "0.1.0"
 description = "Software Development Agentic — arnés de IA que orquesta agentes mediante CLIs de suscripción"
-readme = "idea.md"
+readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "jdrodriguez1000" }]
 dependencies = []
@@ -14,9 +14,8 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 
-# [project.scripts]
-# El entry point `soda` se habilita cuando exista el módulo CLI (paso posterior).
-# soda = "soda.cli:main"
+[project.scripts]
+soda = "soda.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/soda"]

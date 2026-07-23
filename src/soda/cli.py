@@ -1,0 +1,165 @@
+"""CLI del harness: un solo comando `soda` con subcomandos (D-002).
+
+Por ahora expone `init`, que siembra la plantilla de `_persistence` en un
+proyecto destino.
+
+Sobre C-002: la restricción exige que toda función del harness reciba
+`project_root` de forma explícita, y así es —`init_persistence` lo pide
+siempre. El valor por defecto (el directorio actual) se resuelve aquí, en la
+frontera de la CLI, y se convierte en ruta absoluta antes de llamar a nada. La
+comodidad vive en la interfaz; el código de dentro sigue siendo explícito.
+"""
+
+import argparse
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+
+from soda.templates import (
+    PERSISTENCE_DIRNAME,
+    PERSISTENCE_FILENAMES,
+    read_persistence_template,
+)
+
+__all__ = ["CREADO", "SALTADO", "SOBRESCRITO", "init_persistence", "main"]
+
+CREADO = "creado"
+SALTADO = "existe, saltado"
+SOBRESCRITO = "sobrescrito"
+
+
+def init_persistence(project_root: Path, force: bool = False) -> list[tuple[str, str]]:
+    """Siembra la plantilla de `_persistence` dentro de `project_root`.
+
+    Nunca destruye contenido: un archivo que ya existe se salta, salvo que
+    `force` sea verdadero. Es idempotente — repetir la llamada solo completa lo
+    que falte.
+
+    Args:
+        project_root: Raíz del proyecto destino. Debe existir y ser directorio.
+        force: Si es verdadero, sobrescribe los archivos existentes.
+
+    Returns:
+        Una lista de `(nombre de archivo, acción)` en el orden canónico.
+
+    Raises:
+        NotADirectoryError: Si `project_root` no existe o no es un directorio.
+        OSError: Si no se pudo crear o escribir en el destino.
+    """
+    if not project_root.is_dir():
+        raise NotADirectoryError(
+            f"'{project_root}' no existe o no es un directorio. "
+            "`init` siembra la memoria dentro de un proyecto ya existente; "
+            "no crea el proyecto."
+        )
+
+    destino = project_root / PERSISTENCE_DIRNAME
+    destino.mkdir(exist_ok=True)
+
+    resultados: list[tuple[str, str]] = []
+    for nombre in PERSISTENCE_FILENAMES:
+        ruta = destino / nombre
+        ya_estaba = ruta.exists()
+
+        if ya_estaba and not force:
+            resultados.append((nombre, SALTADO))
+            continue
+
+        ruta.write_text(read_persistence_template(nombre), encoding="utf-8")
+        resultados.append((nombre, SOBRESCRITO if ya_estaba else CREADO))
+
+    return resultados
+
+
+def _resumir(resultados: Sequence[tuple[str, str]]) -> str:
+    """Arma la línea de resumen a partir de las acciones ejecutadas."""
+    partes = []
+    for accion, singular, plural in (
+        (CREADO, "creado", "creados"),
+        (SOBRESCRITO, "sobrescrito", "sobrescritos"),
+    ):
+        cuantos = sum(1 for _, hecho in resultados if hecho == accion)
+        if cuantos:
+            partes.append(f"{cuantos} {singular if cuantos == 1 else plural}")
+
+    saltados = sum(1 for _, hecho in resultados if hecho == SALTADO)
+    if saltados:
+        partes.append(f"{saltados} sin tocar")
+
+    return ", ".join(partes) if partes else "nada que hacer"
+
+
+def _forzar_utf8() -> None:
+    """Evita que Windows corrompa la salida con cp1252 (ver L-003)."""
+    for flujo in (sys.stdout, sys.stderr):
+        reconfigure = getattr(flujo, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
+def _ejecutar_init(args: argparse.Namespace) -> int:
+    project_root = Path(args.project_root).resolve()
+
+    try:
+        resultados = init_persistence(project_root, force=args.force)
+    except NotADirectoryError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except OSError as exc:
+        print(f"Error: no se pudo escribir en '{project_root}': {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Destino: {project_root / PERSISTENCE_DIRNAME}")
+    print()
+    for nombre, accion in resultados:
+        print(f"  {accion:<16} {nombre}")
+    print()
+    print(_resumir(resultados) + ".")
+
+    if any(accion == SALTADO for _, accion in resultados):
+        print("Usa --force para reemplazar los archivos existentes.")
+
+    return 0
+
+
+def construir_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="soda",
+        description="Arnés de IA que orquesta agentes mediante CLIs de suscripción.",
+    )
+    subcomandos = parser.add_subparsers(dest="comando")
+
+    init = subcomandos.add_parser(
+        "init",
+        help="Siembra la memoria (`_persistence`) en un proyecto destino.",
+        description="Crea `_persistence/` con los seis archivos de memoria vacíos.",
+    )
+    init.add_argument(
+        "project_root",
+        nargs="?",
+        default=".",
+        help="Raíz del proyecto destino (por defecto: el directorio actual).",
+    )
+    init.add_argument(
+        "--force",
+        action="store_true",
+        help="Reemplaza los archivos que ya existan. Destruye memoria acumulada.",
+    )
+
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    _forzar_utf8()
+    parser = construir_parser()
+    args = parser.parse_args(argv)
+
+    if args.comando == "init":
+        return _ejecutar_init(args)
+
+    parser.print_help()
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

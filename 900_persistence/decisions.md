@@ -12,6 +12,11 @@
 | [D-006](#d-006--implementaciones-concretas-de-provider-en-srcsodaproviders-no-en-core) | Implementaciones concretas de `Provider` en `src/soda/providers/`, no en `core/` | 2026-07-23 |
 | [D-007](#d-007--el-prompt-se-entrega-al-cli-por-stdin-no-como-argumento) | El prompt se entrega al CLI por stdin, no como argumento | 2026-07-23 |
 | [D-008](#d-008--interfaz-de-provider-deliberadamente-mínima) | Interfaz de `Provider` deliberadamente mínima | 2026-07-23 |
+| [D-009](#d-009--las-plantillas-se-acceden-con-importlibresources-no-con-pathfile__parent) | Las plantillas se acceden con `importlib.resources`, no con `Path(__file__).parent` | 2026-07-23 |
+| [D-010](#d-010--soda-init-acepta-project_root-como-argumento-opcional-en-la-cli) | `soda init` acepta `project_root` como argumento opcional en la CLI | 2026-07-23 |
+| [D-011](#d-011--init-es-no-destructivo-por-defecto-con-relleno-parcial-y---force-para-sobrescribir) | `init` es no destructivo por defecto, con relleno parcial, y `--force` para sobrescribir | 2026-07-23 |
+| [D-012](#d-012--init-solo-siembra-los-seis-archivos-de-memoria-no-crea-claudemd-ni-toca-gitignore) | `init` solo siembra los seis archivos de memoria; no crea `CLAUDE.md` ni toca `.gitignore` | 2026-07-23 |
+| [D-013](#d-013--init-crea-_persistence-pero-exige-que-project_root-ya-exista) | `init` crea `_persistence/` pero exige que `project_root` ya exista | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -78,3 +83,43 @@
 - **Decisión:** Un solo método abstracto, `send(prompt: str) -> str`.
 - **Alternativas descartadas:** Añadir de entrada parámetros para modelo configurable, system prompt, streaming, y modo API/key para producción (mencionado en `idea.md:38-40`); descartados hasta que exista un caso de uso real que los pida.
 - **Consecuencias:** La interfaz crecerá solo cuando haya necesidad concreta; cualquier extensión futura debe justificarse con un caso de uso real, no anticiparse.
+
+### D-009 — Las plantillas se acceden con `importlib.resources`, no con `Path(__file__).parent`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Diseñar cómo `soda` lee los archivos de `src/soda/templates/_persistence/` en tiempo de ejecución (T-004).
+- **Decisión:** El acceso pasa siempre por `importlib.resources.files()` (`persistence_root()` en `src/soda/templates/__init__.py`), nunca por una ruta relativa al árbol de fuentes.
+- **Alternativas descartadas:** Resolver la ruta con `Path(__file__).parent`, descartado porque el paquete puede quedar instalado comprimido (zip import) o en una ruta que no corresponde al árbol de fuentes; `files()` funciona en ambos casos.
+- **Consecuencias:** El accesor de `src/soda/templates/__init__.py` es la única vía legítima para leer plantillas. Verificado instalando el wheel en un venv limpio fuera del árbol de fuentes.
+
+### D-010 — `soda init` acepta `project_root` como argumento opcional en la CLI
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Definir la ergonomía de `soda init`: si `project_root` debe ser obligatorio o puede asumir el directorio actual por defecto, sin violar C-002.
+- **Decisión:** En la CLI, `project_root` es opcional y usa el directorio actual por defecto. La función interna `init_persistence()` sigue exigiendo `project_root` explícito siempre; el valor por defecto se resuelve a ruta absoluta en `main()` antes de llamar a nada.
+- **Alternativas descartadas:** Exigir `project_root` obligatorio en la CLI (p. ej. `soda init .`), descartado por ergonomía a petición del usuario.
+- **Consecuencias:** La comodidad vive solo en la interfaz; el código interno cumple C-002 al pie de la letra. Cubierto por el test `test_siembra_dentro_de_project_root_y_no_en_el_directorio_actual` (chdir a otra carpeta, comprueba que la siembra va donde dice el argumento). La CLI imprime siempre la ruta absoluta resuelta.
+
+### D-011 — `init` es no destructivo por defecto, con relleno parcial, y `--force` para sobrescribir
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Decidir el comportamiento de `soda init` cuando `_persistence/` ya existe total o parcialmente en el destino.
+- **Decisión:** Por defecto, `init` nunca sobrescribe un archivo existente; completa solo lo que falta (relleno parcial, idempotente). `--force` sobrescribe, nombrando cada archivo reemplazado.
+- **Alternativas descartadas:** Fallar en seco si `_persistence/` ya existe, descartado porque el relleno parcial es idempotente y permite que un séptimo archivo de memoria futuro se complete en proyectos existentes sin tocar el resto.
+- **Consecuencias:** Ningún archivo con contenido se pierde sin `--force` escrito a mano, y ni siquiera entonces en silencio (se reporta qué se sobrescribió).
+
+### D-012 — `init` solo siembra los seis archivos de memoria; no crea `CLAUDE.md` ni toca `.gitignore`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Definir el alcance exacto de lo que `soda init` toca en el proyecto destino.
+- **Decisión:** `init` siembra únicamente los seis archivos de memoria en `_persistence/`; no crea `CLAUDE.md` en el destino ni modifica `.gitignore`.
+- **Alternativas descartadas:** Añadir `_persistence/` al `.gitignore` del destino, descartado como activamente incorrecto: E1 de `905_guideline/principles.md` establece Git como registro de estado entre sesiones, así que `_persistence/` debe versionarse, no ignorarse.
+- **Consecuencias:** `_persistence/` queda siempre trackeable por Git en el proyecto destino; cualquier necesidad futura de generar `CLAUDE.md` en destino sería una tarea separada.
+
+### D-013 — `init` crea `_persistence/` pero exige que `project_root` ya exista
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Decidir qué hace `init` si el `project_root` recibido no existe en disco.
+- **Decisión:** `init` crea `_persistence/` si falta, pero falla con `NotADirectoryError` si `project_root` no existe o no es un directorio.
+- **Alternativas descartadas:** Crear también `project_root` si no existe, descartado porque sembrar memoria dentro de un proyecto es el trabajo de `init`, pero crear un árbol de directorios completo a partir de una ruta mal tecleada es cómo se termina sembrando memoria en un destino equivocado.
+- **Consecuencias:** Un typo en `project_root` falla ruidosamente (exit 1, mensaje accionable) en vez de crear silenciosamente una carpeta nueva no intencionada.

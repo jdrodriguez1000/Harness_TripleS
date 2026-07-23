@@ -23,6 +23,7 @@
 | [T-017](#t-017--soda-close-invocar-a-sesion-closer) | `soda close`: invocar a `sesion-closer` | No implementada |
 | [T-018](#t-018--spike-bucle-repl-exterior--delegación-a-subagente-sobre-suscripción) | Spike: bucle REPL exterior + delegación a subagente sobre suscripción | Implementada |
 | [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | No implementada |
+| [T-020](#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) | Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -162,4 +163,11 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Con el pivote registrado en D-035 y validado empíricamente en T-018, reevaluar todo el trabajo previo del harness: qué sobrevive (doctrina `_guideline/`, memoria `_persistence/`, `soda init`, `soda start`), qué queda superado (D-025/D-026 reabiertas, la interfaz de 5 comandos, `sesion-starter` como invocación de un solo disparo vía `claude -p`), y definir el nuevo orden de construcción con el REPL/orquestador persistente en el centro. Incluye decidir si el bucle interior de delegación se construye con el Agent SDK for Python (tools/subagentes estructurados, L-014) o se mantiene la convención a mano validada en T-018 (C-008).
-- **Pendiente:** Todo el diseño. Punto de entrada de la próxima sesión.
+- **Pendiente:** Sesión de análisis y decisión (2026-07-23, sin código): el usuario propuso un flujo de arranque esperado para `soda` y su análisis produjo D-036 (el bucle interior se construye con el Claude Agent SDK usando `tool_use` estructurado, no la convención de marcador de C-008) y cuatro hallazgos que ordenan el resto de T-019 (detección de estado por Python con tres estados en disco, no dos; el Descubridor —no `sesion-starter`— es el primer agente en un proyecto nuevo, confirma D-028; el REPL persistente desbloquea la parte abierta de C-007; `sesion-starter` sigue siendo subagente separado pero invocado por Python, no por el LLM). Sigue pendiente: el nuevo orden de construcción completo (qué agente/comando va primero, cómo se compone `soda step`/`state.yaml` sobre el REPL) y su cableado; se retoma tras T-020.
+
+### T-020 — Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Con D-036 decidido (el bucle interior de delegación usa el Claude Agent SDK for Python con `tool_use` estructurado, no la convención de marcador de C-008/T-018), construir y verificar en real un spike equivalente a `scripts/chat_delegacion.py` pero usando el Agent SDK sobre suscripción: herramientas `@tool` / subagentes `AgentDefinition`, delegación detectada por `stop_reason == "tool_use"`, corriendo sin `ANTHROPIC_API_KEY` (autenticación por OAuth de `claude /login`).
+- **Pendiente:** Todo el diseño e implementación. Punto de entrada de la próxima sesión, antes de comprometer el Camino B en el orden de construcción final de T-019.

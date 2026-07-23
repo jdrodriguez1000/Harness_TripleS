@@ -7,28 +7,45 @@
 
 ## Estado actual
 
-La sesión anterior había implementado y verificado `soda start` (T-013) y `sesion-starter`
-(T-012), primeros dos pasos del orden de construcción D-028. Esta sesión abrió con T-014
-(`state.yaml`) pero derivó en un **pivote de arquitectura** disparado por `transcript.md`
-(video de referencia): `soda` deja de perseguir el modelo "orquestador = script de Python +
-agentes = subprocesos `claude -p` sin estado" (D-024 a D-026) y pasa a un modelo de agente
-orquestador **persistente** (bucle REPL, delega en subagentes), corriendo sobre suscripción
-en vez de API de pago por token (D-035, reabre D-025/D-026/D-028). El pivote no quedó solo
-en discusión: se validó con `ctx7` que el Claude Agent SDK for Python autentica con la
-suscripción sin requerir `ANTHROPIC_API_KEY` (L-014), y se construyeron y verificaron en real
-dos spikes fuera de `src/soda/` (T-018): `scripts/chat.py` (bucle REPL exterior) y
-`scripts/chat_delegacion.py` (bucle interior, delegación a un subagente por convención de
-marcador, con el dato real calculado por Python, no inventado por el modelo). Ambos
-funcionaron sobre la suscripción, verificados en vivo por el usuario en su máquina. `state.yaml`
-(T-014) no se implementó; quedó diseño de avance registrado en su detalle, pero supeditado a
-la reevaluación de T-019, la próxima tarea.
+Sesión de análisis y decisión pura sobre T-019, sin cambios de código. El usuario propuso un
+flujo de arranque esperado para `soda` y, del análisis de ese flujo, salió D-036: el bucle
+interior del orquestador se construye con el **Claude Agent SDK for Python** usando
+`tool_use` estructurado (Camino B), no con la convención de marcador `[[LLAMAR:...]]`
+validada en T-018 (Camino A, que queda documentada como diseño previo, C-008 superada para
+producto). El SDK se encapsula detrás de `Provider` para no clausurar `codex`/otros CLIs
+(protege D-006/D-008). Del análisis quedaron ordenados cuatro hallazgos que acotan el resto
+de T-019: (1) la detección de estado del proyecto es Python puro, con **tres** estados en
+disco —VACÍO, SEMBRADO_SIN_TRABAJO, CON_MEMORIA—, no dos; (2) el Descubridor, no
+`sesion-starter`, es el primer agente en un proyecto estrictamente nuevo (confirma D-028); (3)
+el REPL persistente desbloquea la parte de C-007 que seguía abierta (la entrevista de
+arranque del Descubridor deja de necesitar andamiaje especial); (4) `sesion-starter` sigue
+siendo un subagente haiku separado, pero lo invoca Python al detectar CON_MEMORIA, no el LLM.
+T-019 sigue `No implementada` (avanzada parcialmente); se registra T-020 como próximo paso
+concreto antes de cerrar T-019 del todo.
 
 ## Qué sigue
 
-- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Reevaluar todo el trabajo previo a la luz del pivote (D-035): qué sobrevive (doctrina `_guideline/`, memoria `_persistence/`, `soda init`, `soda start`), qué queda superado (D-025/D-026, interfaz de 5 comandos, `sesion-starter` como invocación de un solo disparo), y definir el nuevo orden de construcción con el REPL/orquestador persistente en el centro; decidir si el bucle interior se construye con el Agent SDK for Python o se mantiene la convención a mano (C-008).
+- [T-020](tasks.md#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) — Spike de delegación con `tool_use` estructurado usando el Claude Agent SDK sobre suscripción, equivalente a los spikes de T-018 pero validando el Camino B (D-036) antes de comprometerlo en el orden de construcción.
+- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Completar la reevaluación del orden de construcción con el REPL/orquestador persistente en el centro, usando los cuatro hallazgos de esta sesión como base.
 - El resto del orden de construcción anterior (T-014 a T-017) queda en suspenso, pendiente de lo que resuelva T-019; no se cancela, pero probablemente cambie de forma.
 
 ## Historial de hitos
+
+### 2026-07-23 — Sesión de análisis y decisión sobre T-019: el bucle interior usa `tool_use` estructurado del Agent SDK (D-036)
+
+Sesión 100% análisis, sin código. Retomó T-019 a partir de un flujo de arranque propuesto por
+el usuario; de su análisis salió D-036, decisión firme sobre el bucle interior del
+orquestador: se construye con el Claude Agent SDK for Python (`tool_use` estructurado,
+herramientas `@tool` y subagentes `AgentDefinition`), no con la convención de marcador
+`[[LLAMAR:...]]` de T-018, que queda como diseño previo (C-008 anotada como superada para
+producto). Punto crítico verificado en el análisis: el `tool_use` estructurado sobre
+suscripción llega por el Agent SDK, no por la Messages API de pago por token; "decidir
+`tool_use`" es lo mismo que "decidir el Camino B (Agent SDK)". El SDK se encapsula detrás de
+`Provider` para proteger D-006/D-008 y no clausurar `codex`. Del mismo análisis salieron
+cuatro hallazgos que ordenan el resto de T-019 (detección de estado en tres pasos por Python
+puro; el Descubridor como primer agente real en proyecto nuevo, confirmando D-028; el REPL
+persistente desbloqueando la parte abierta de C-007; `sesion-starter` invocado por Python, no
+por el LLM). Se registra T-020 como próximo paso: spike del Camino B con el Agent SDK.
 
 ### 2026-07-23 — Pivote de arquitectura: orquestador persistente tipo REPL sobre suscripción, validado con dos spikes (D-035, T-018)
 

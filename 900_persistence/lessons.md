@@ -11,6 +11,8 @@
 | [L-005](#l-005--la-prueba-manual-encuentra-defectos-que-los-tests-no-buscan) | La prueba manual encuentra defectos que los tests no buscan | 2026-07-23 |
 | [L-006](#l-006--un-documento-heredado-de-otro-proyecto-arrastra-referencias-colgantes) | Un documento heredado de otro proyecto arrastra referencias colgantes | 2026-07-23 |
 | [L-007](#l-007--un-archivo-importante-puede-llevar-sesiones-sin-estar-en-git) | Un archivo importante puede llevar sesiones sin estar en git | 2026-07-23 |
+| [L-008](#l-008--estimar-una-reducción-de-líneas-falla-cuando-el-contenido-a-quitar-vive-dentro-de-otras-líneas) | Estimar una reducción de líneas falla cuando el contenido a quitar vive dentro de otras líneas | 2026-07-23 |
+| [L-009](#l-009--un-recorte-por-palabra-clave-puede-destruir-contenido-con-un-referente-distinto-que-comparte-la-misma-palabra) | Un recorte por palabra clave puede destruir contenido con un referente distinto que comparte la misma palabra | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -62,3 +64,17 @@
 - **Contexto:** Al mudar `905_guideline/` con `git mv` (T-008), `git status` reveló que `methodology.md` (876 líneas) aparecía como untracked: nunca había sido versionado, pese a llevar sesiones existiendo en el repo.
 - **Lección:** Un archivo puede llevar sesiones de trabajo sin estar bajo control de versiones sin que nadie lo note; un `git clean` en cualquier momento lo habría borrado sin aviso.
 - **Aplicación:** Revisar `git status` (no solo `git diff`) al tocar cualquier carpeta antigua o heredada, y tratar cualquier archivo untracked inesperado como una alerta a resolver antes de seguir, no como ruido a ignorar.
+
+### L-008 — Estimar una reducción de líneas falla cuando el contenido a quitar vive dentro de otras líneas
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Antes de recortar el alcance de ML en `methodology.md` (T-010 paso 1), se estimó una reducción de 45-60 líneas. El resultado real fue 53 inserciones/54 borrados: casi el doble de cambio de lo esperado, pero con reducción neta similar.
+- **Lección:** Una estimación por "bloques a remover" solo es fiable si el contenido a quitar existe como bloques propios (párrafos, filas de tabla completas). Cuando vive como columna dentro de una tabla o como inciso dentro de una línea (p. ej. "(y umbrales, en ML)"), cada línea afectada requiere reescritura, no borrado, y el conteo de líneas netas no refleja el volumen real de ediciones.
+- **Aplicación:** Antes de estimar el tamaño de un recorte de alcance, verificar si el contenido a quitar es removible como bloque o si está entrelazado dentro de líneas que hay que reescribir; en el segundo caso, contar ediciones (inserciones + borrados), no solo la reducción neta esperada.
+
+### L-009 — Un recorte por palabra clave puede destruir contenido con un referente distinto que comparte la misma palabra
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al recortar el alcance de ML en `methodology.md` (T-010 paso 1), la palabra "probabilístico" tenía dos referentes distintos: el producto ML que el harness ya no cubre (se retiraba) y el agente LLM que construye el harness (tesis central, se conservaba). Un `grep ML` naíf sobre "probabilístico" habría arrastrado las 4 apariciones del segundo referente.
+- **Lección:** Un recorte de alcance guiado por palabra clave o por tema superficial (ej. "todo lo de ML") puede destruir contenido no relacionado que comparte vocabulario con lo que se quiere quitar, si no se distingue antes el referente real de cada aparición.
+- **Aplicación:** Antes de aplicar un recorte temático, listar cada aparición de los términos ambiguos y clasificar su referente real, no solo su forma superficial; conservar explícitamente las apariciones que apuntan a un concepto distinto del que se está retirando.

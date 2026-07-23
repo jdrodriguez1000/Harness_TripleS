@@ -4,10 +4,12 @@
 > `_guideline/principles.md`. Gobierna el **comportamiento** de los agentes del arnés en cualquier
 > proyecto que el arnés construya. No es la metodología con la que se construye `soda` mismo.
 
-Fuente canónica de comportamiento del sistema de agentes. Su compañero `methodology.md` fija el
-**proceso** de construcción (fases, gates, artefactos, roles). Ante conflicto sobre **cómo debe
-comportarse un agente**, manda este documento; ante conflicto sobre **qué paso viene ahora en el
-flujo**, manda `methodology.md`.
+Fuente canónica de comportamiento del sistema de agentes. Sus compañeros son `methodology.md`
+—**proceso** de construcción: fases, gates, madurez, persistencia (§0–§4, §6, §7)— y
+`agents-and-evaluation.md` —**arquetipos, evaluación y observabilidad** (§3.1, §5, §8, §9, §10)—; entre
+esos dos la numeración de secciones es continua y única. Ante conflicto sobre **cómo debe comportarse
+un agente**, manda este documento; ante conflicto sobre **qué paso viene ahora en el flujo**, mandan
+ellos.
 
 ---
 
@@ -58,7 +60,7 @@ orden ocurrieron las cosas dentro de una invocación* («¿leyó el contrato ant
 adopción, en vez de escribirse como si ya aplicara.
 
 > **Por qué.** Escribir predicados que nadie puede ejecutar es exactamente el fallo que
-> `methodology.md` §10.2 documenta haber cometido: perfiles de conformidad vivos en los prompts durante
+> `agents-and-evaluation.md` §10.2 documenta haber cometido: perfiles de conformidad vivos en los prompts durante
 > tres corridas completas sin que nadie los corriera nunca. Una regla inejecutable no es una regla a
 > medias; es decoración.
 

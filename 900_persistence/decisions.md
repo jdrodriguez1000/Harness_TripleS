@@ -20,6 +20,9 @@
 | [D-014](#d-014--principlesmd-y-methodologymd-son-producto-no-andamiaje-mudados-a-srcsodatemplates_guideline) | `principles.md` y `methodology.md` son producto, no andamiaje; mudados a `src/soda/templates/_guideline/` | 2026-07-23 |
 | [D-015](#d-015--los-códigos-de-principlesmd-son-identificadores-permanentes-de-3-dígitos) | Los códigos de `principles.md` son identificadores permanentes de 3 dígitos | 2026-07-23 |
 | [D-016](#d-016--los-predicados-de-conformidad-se-escriben-solo-contra-evidencia-disponible-hoy) | Los predicados de conformidad se escriben solo contra evidencia disponible hoy | 2026-07-23 |
+| [D-017](#d-017--el-harness-trabaja-exclusivamente-proyectos-de-desarrollo-de-software) | El harness trabaja exclusivamente proyectos de desarrollo de software | 2026-07-23 |
+| [D-018](#d-018--tres-estados-de-aplicación-normativo-diferido-y-pendiente-no-dos) | Tres estados de aplicación (normativo, `[DIFERIDO]` y `[PENDIENTE]`), no dos | 2026-07-23 |
+| [D-019](#d-019--dividir-methodologymd-sin-renumerar-secciones) | Dividir `methodology.md` sin renumerar secciones | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -150,3 +153,27 @@
 - **Decisión:** Los predicados de conformidad se escriben solo contra evidencia disponible hoy (artefactos en disco + git log); lo que requiere infraestructura futura se declara como pendiente con gatillo explícito (§5 de `principles.md`), no se escribe como si ya aplicara.
 - **Alternativas descartadas:** Escribir predicados aspiracionales asumiendo infraestructura futura, descartado porque produce reglas que ningún agente puede cumplir verificablemente hoy — el mismo defecto que `methodology.md` confiesa en su §10.2 (perfiles de conformidad vivos en prompts sin que nadie los ejecutara).
 - **Consecuencias:** `principles.md` §5 lista explícitamente los pendientes declarados (motor de traza, umbral de ventana de contexto, cuota cuantificada); `methodology.md` no aplica todavía esta disciplina de forma consistente (queda como parte de T-010).
+
+### D-017 — El harness trabaja exclusivamente proyectos de desarrollo de software
+
+- **Fecha:** 2026-07-23
+- **Contexto:** `methodology.md` declaraba cubrir dos familias de proyecto (desarrollo de software y Ciencia de datos/ML), con una tabla comparativa y adaptaciones específicas para ML en varios puntos del documento (umbrales de métrica, notebooks, evaluación).
+- **Decisión:** El usuario acotó explícitamente el alcance del harness a proyectos de desarrollo de software exclusivamente; ningún soporte especial para Ciencia de datos/ML. El documento sigue siendo agnóstico de lenguaje/stack/framework, pero no de dominio.
+- **Alternativas descartadas:** Mantener las dos familias de proyecto como se tenía, descartado por decisión explícita del usuario de acotar el alcance del producto.
+- **Consecuencias:** T-010 paso 1 recortó `methodology.md` (cabecera, §2, ~10 puntos, §8) eliminando referencias a ML/notebook/umbral de métrica, preservando con cuidado la distinción entre "producto ML" (se fue) y "agente LLM probabilístico" (se quedó, tesis central del harness). Cualquier trabajo futuro de soporte a ML quedaría fuera de alcance salvo decisión nueva que revierta esta.
+
+### D-018 — Tres estados de aplicación (normativo, `[DIFERIDO]` y `[PENDIENTE]`), no dos
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al marcar `methodology.md`/`agents-and-evaluation.md` con qué rige hoy y qué no (T-010 paso 2), el pedido inicial era distinguir solo dos estados (normativo vs. diferido). El inventario del repo mostró que "diferido" tapaba dos situaciones distintas que se revierten de forma distinta.
+- **Decisión:** Se usan tres estados: *(sin marca)* = normativo, rige desde la primera sesión sin infraestructura previa; `[DIFERIDO]` = decidido no adoptar aún, lleva gatillo de adopción, se revierte con evidencia (ver D-016); `[PENDIENTE]` = se quiere pero falta una pieza nombrada, se revierte entregando esa pieza.
+- **Alternativas descartadas:** Dos estados (normativo/diferido) tal como se pidió inicialmente, descartado porque mezclaba "decidido no adoptar" con "falta construir la pieza", que requieren reversión y evidencia de tipos distintos.
+- **Consecuencias:** Nueva §0.3 en `agents-and-evaluation.md` con el núcleo normativo y una tabla de 8 piezas ausentes ("qué se hace sin ella"); 9 marcas `[DIFERIDO]` y 14 `[PENDIENTE]` colocadas. Detectada tarea nueva T-011: `principles.md` §5 usa un vocabulario distinto ("Gatillo de adopción" para ítems que en realidad son `[PENDIENTE]`) y queda sin unificar con esta taxonomía.
+
+### D-019 — Dividir `methodology.md` sin renumerar secciones
+
+- **Fecha:** 2026-07-23
+- **Contexto:** El gatillo de división propio de `methodology.md` ya estaba disparado (418 líneas contra un umbral de ~250 para el bloque §5+§8+§9+§10+§3.1), forzando a partir el documento en dos archivos (T-010 paso 3).
+- **Decisión:** Dividir en `methodology.md` (§0-§4, §6, §7, Apéndice) y `agents-and-evaluation.md` (§3.1, §5, §8, §9, §10) sin renumerar ninguna sección; los números quedan únicos globalmente entre ambos archivos, así que "§8" significa lo mismo se lea donde se lea.
+- **Alternativas descartadas:** Renumerar las secciones movidas para que cada archivo tuviera numeración correlativa propia, descartado porque habría obligado a reescribir referencias cruzadas en ambos documentos y en `principles.md` sin ninguna ganancia real (mismo problema que evitó D-015 con los códigos de `principles.md`).
+- **Consecuencias:** Cero referencias cruzadas rotas (verificado por script: 28 secciones definidas, 0 referencias `§N` rotas). Cada archivo lleva en cabecera un mapa de qué § vive dónde. `principles.md` (que citaba `methodology.md §10.2`, mudada a `agents-and-evaluation.md`) tuvo que corregirse igual, porque la mudanza de sección entre archivos sí cambia cuál documento hay que citar, aunque el número de sección no cambie.

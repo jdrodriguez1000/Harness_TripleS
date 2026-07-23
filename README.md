@@ -194,6 +194,9 @@ src/soda/            El producto: lo que se instala y distribuye
   templates/           Plantillas que viajan al proyecto destino
     _persistence/        Los seis archivos de memoria (los siembra `soda init`)
     _guideline/          Comportamiento de los agentes y metodología de construcción
+      principles.md        Principios (P), requisitos (E) y normas (NC) del comportamiento
+      methodology.md       Proceso de construcción: espina, ciclo, madurez, gates, persistencia
+      agents-and-evaluation.md  Arquetipos de agente, evaluación del producto y observabilidad
   cli.py               CLI: `soda` y sus subcomandos
 tests/               Suite automatizada
 scripts/             Pruebas manuales (andamiaje, no se distribuye)

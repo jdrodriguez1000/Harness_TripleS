@@ -7,29 +7,45 @@
 
 ## Estado actual
 
-Sesión de análisis y decisión pura sobre T-019, sin cambios de código. El usuario propuso un
-flujo de arranque esperado para `soda` y, del análisis de ese flujo, salió D-036: el bucle
-interior del orquestador se construye con el **Claude Agent SDK for Python** usando
-`tool_use` estructurado (Camino B), no con la convención de marcador `[[LLAMAR:...]]`
-validada en T-018 (Camino A, que queda documentada como diseño previo, C-008 superada para
-producto). El SDK se encapsula detrás de `Provider` para no clausurar `codex`/otros CLIs
-(protege D-006/D-008). Del análisis quedaron ordenados cuatro hallazgos que acotan el resto
-de T-019: (1) la detección de estado del proyecto es Python puro, con **tres** estados en
-disco —VACÍO, SEMBRADO_SIN_TRABAJO, CON_MEMORIA—, no dos; (2) el Descubridor, no
-`sesion-starter`, es el primer agente en un proyecto estrictamente nuevo (confirma D-028); (3)
-el REPL persistente desbloquea la parte de C-007 que seguía abierta (la entrevista de
-arranque del Descubridor deja de necesitar andamiaje especial); (4) `sesion-starter` sigue
-siendo un subagente haiku separado, pero lo invoca Python al detectar CON_MEMORIA, no el LLM.
-T-019 sigue `No implementada` (avanzada parcialmente); se registra T-020 como próximo paso
-concreto antes de cerrar T-019 del todo.
+T-020 completada: el Camino B (Claude Agent SDK for Python, D-036) quedó verificado EN VIVO
+sobre suscripción, no solo por documentación. `scripts/chat_delegacion_sdk.py` demuestra
+`tool_use` estructurado gestionado por el propio SDK (sin bucle a mano), autenticación por
+OAuth de `claude /login` sin `ANTHROPIC_API_KEY`, y delegación automática de la sesión
+principal a un subagente `AgentDefinition` (`clocker`), con enrutado correcto (delega ante
+"qué hora es", no delega ante "capital de Francia"). D-036 y L-014 quedan confirmadas por
+evidencia real; C-008 queda definitivamente superada para producto. Del spike salieron tres
+hallazgos nuevos (L-015 a L-017): observabilidad de la delegación anidada vía
+`parent_tool_use_id`, dos ajustes de configuración imprescindibles del SDK
+(`permission_mode="bypassPermissions"` y permitir `ToolSearch` en `allowed_tools`), y que la
+herramienta de delegación se llama `Agent` o `Task` según el build del CLI. T-019 sigue `No
+implementada`: con el Camino B ya validado en real, el próximo paso es retomarla para
+terminar de definir el nuevo orden de construcción, incluida la incógnita de persistencia de
+sesión viva con `ClaudeSDKClient` que quedó deliberadamente fuera de este spike.
 
 ## Qué sigue
 
-- [T-020](tasks.md#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) — Spike de delegación con `tool_use` estructurado usando el Claude Agent SDK sobre suscripción, equivalente a los spikes de T-018 pero validando el Camino B (D-036) antes de comprometerlo en el orden de construcción.
-- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Completar la reevaluación del orden de construcción con el REPL/orquestador persistente en el centro, usando los cuatro hallazgos de esta sesión como base.
+- [T-019](tasks.md#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) — Completar la reevaluación del orden de construcción con el REPL/orquestador persistente en el centro, ahora con el Camino B (Agent SDK) validado en real por T-020; incluye decidir la persistencia de sesión viva con `ClaudeSDKClient`.
 - El resto del orden de construcción anterior (T-014 a T-017) queda en suspenso, pendiente de lo que resuelva T-019; no se cancela, pero probablemente cambie de forma.
 
 ## Historial de hitos
+
+### 2026-07-23 — T-020 verificada en vivo: `tool_use` estructurado del Agent SDK sobre suscripción, con subagente delegado
+
+Spike de delegación con el Claude Agent SDK for Python (`scripts/probar_agent_sdk.py`,
+`scripts/chat_delegacion_sdk.py`), construido para validar en real el Camino B decidido en
+D-036 antes de comprometerlo en el orden de construcción de T-019. Los tres puntos críticos
+quedaron verificados por el usuario en su propia terminal sobre suscripción: `tool_use`
+estructurado gestionado por el SDK (herramienta definida con `@tool` +
+`create_sdk_mcp_server`, el dato factual real lo calcula Python vía `datetime.now()`, nunca
+el modelo); autenticación por OAuth de `claude /login` sin `ANTHROPIC_API_KEY`, reutilizando
+la política de borrado de variables de entorno de `ClaudeCLIProvider` (D-031); y un subagente
+`clocker` definido con `AgentDefinition`, invocado automáticamente por la sesión principal
+solo cuando corresponde. `pyproject.toml` gana el grupo opcional `spike` con
+`claude-agent-sdk`, sin tocar las dependencias del producto. D-036 y L-014 quedan confirmadas
+en vivo; C-008 queda definitivamente superada para producto (nota de actualización en
+`constraints.md`). Se registran L-015 a L-017 con los hallazgos de observabilidad
+(`parent_tool_use_id`) y de configuración del SDK (`permission_mode`, `ToolSearch`, nombre de
+la herramienta de delegación).
 
 ### 2026-07-23 — Sesión de análisis y decisión sobre T-019: el bucle interior usa `tool_use` estructurado del Agent SDK (D-036)
 

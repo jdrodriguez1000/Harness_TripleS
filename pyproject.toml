@@ -13,6 +13,11 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+# Solo para los spikes de exploración (scripts/), no para el producto. Valida
+# el Camino B de la delegación: tool_use estructurado del Claude Agent SDK
+# sobre suscripción (T-020, D-036). No se promueve a dependencia dura hasta
+# que el spike confirme que funciona.
+spike = ["claude-agent-sdk"]
 
 [project.scripts]
 soda = "soda.cli:main"

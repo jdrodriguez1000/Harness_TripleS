@@ -18,6 +18,9 @@
 | [L-012](#l-012--la-prueba-manual-volvió-a-encontrar-lo-que-la-suite-no-buscaba) | La prueba manual volvió a encontrar lo que la suite no buscaba | 2026-07-23 |
 | [L-013](#l-013--validar-una-url-de-remoto-con-una-regex-estricta-rechaza-remotos-legítimos) | Validar una URL de remoto con una regex estricta rechaza remotos legítimos | 2026-07-23 |
 | [L-014](#l-014--el-agent-sdk-for-python-es-en-la-práctica-la-única-vía-a-un-bucle-agéntico-con-toolssubagentes-estructurados-sobre-suscripción-sin-api) | El Agent SDK for Python es, en la práctica, la única vía a un bucle agéntico con tools/subagentes estructurados sobre suscripción sin API | 2026-07-23 |
+| [L-015](#l-015--observabilidad-de-la-delegación-anidada-vía-parent_tool_use_id) | Observabilidad de la delegación anidada vía `parent_tool_use_id` | 2026-07-23 |
+| [L-016](#l-016--el-agent-sdk-exige-permission_mode-y-toolsearch-explícitos-para-que-la-delegación-no-se-corte) | El Agent SDK exige `permission_mode` y `ToolSearch` explícitos para que la delegación no se corte | 2026-07-23 |
+| [L-017](#l-017--la-herramienta-de-delegación-a-subagentes-cambia-de-nombre-según-el-build-del-cli) | La herramienta de delegación a subagentes cambia de nombre según el build del CLI | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -118,3 +121,25 @@
 - **Contexto:** Al evaluar si el bucle interior del modelo del video de referencia (delegación a subagentes con `tool_use` estructurado) se podía construir a mano sobre el CLI `claude -p`, se verificó con `ctx7` la documentación del Claude Agent SDK for Python (`anthropics/claude-agent-sdk-python`), en el marco del pivote de arquitectura (D-035).
 - **Lección:** Hand-rollear el bucle interior con `tool_use` estructurado, como hace el video, exige la API de pago por token. El Agent SDK for Python es prácticamente la única vía a un bucle agéntico con subagentes estructurados que además autentica con la suscripción (OAuth de `claude /login`, no `ANTHROPIC_API_KEY`). Sin el SDK, la delegación a subagentes solo se logra con una convención a mano (marcador de texto), verificada viable pero frágil (T-018, ver C-008).
 - **Aplicación:** Al decidir el nuevo orden de construcción (T-019), evaluar explícitamente si el bucle interior se construye con el Agent SDK for Python o se mantiene la convención a mano. Matiz a no olvidar: el fallback de Keychain visto en el código del SDK es de macOS; en Windows las credenciales salen de `~/.claude/.credentials.json`.
+- **Actualización (T-020, 2026-07-23):** Confirmada en vivo, no solo por documentación. `scripts/probar_agent_sdk.py` y `scripts/chat_delegacion_sdk.py` corrieron sobre la suscripción real del usuario (`is_error=False`, `ANTHROPIC_API_KEY` ausente del entorno).
+
+### L-015 — Observabilidad de la delegación anidada vía `parent_tool_use_id`
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir `scripts/chat_delegacion_sdk.py` (T-020) para mostrar en pantalla qué hace la sesión principal y qué hace el subagente `clocker` al delegar.
+- **Lección:** En el stream del Claude Agent SDK, cada `AssistantMessage`/`UserMessage` trae `parent_tool_use_id`. Los mensajes que pertenecen a un subagente lo traen apuntando al `id` del bloque `Agent`/`Task` que lo invocó; los de la sesión principal lo traen en `None`. Este campo permite atribuir en pantalla quién produjo cada paso (sesión principal vs. subagente concreto) sin inferencia ni heurística de texto.
+- **Aplicación:** Insumo directo para la observabilidad del futuro orquestador REPL persistente (D-035): cualquier interfaz que muestre el trabajo de la sesión y sus subagentes puede apoyarse en `parent_tool_use_id` en vez de inventar un mecanismo de atribución propio.
+
+### L-016 — El Agent SDK exige `permission_mode` y `ToolSearch` explícitos para que la delegación no se corte
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir `scripts/chat_delegacion_sdk.py` (T-020), la delegación a un subagente con herramienta `@tool` fallaba o se cortaba en modo no interactivo hasta ajustar dos parámetros del SDK.
+- **Lección:** (a) Sin `permission_mode="bypassPermissions"`, el diálogo de permiso por herramienta interrumpe el turno porque no hay con quién dialogar en modo no interactivo (relacionado con C-007: `claude -p`/el SDK tampoco tienen canal con el humano a mitad de turno salvo que se le diga explícitamente que no lo pida). (b) El CLI difiere el esquema de las herramientas MCP: el modelo hace primero un paso `ToolSearch` para cargarlo antes de poder llamar a la herramienta real; si `ToolSearch` no está en `allowed_tools`, ese primer paso falla y la delegación nunca llega a ejecutar la herramienta. Este comportamiento se observó también en la terminal directa del usuario, no es artefacto de una sesión anidada.
+- **Aplicación:** Cualquier uso futuro del Agent SDK con herramientas `@tool`/subagentes en modo no interactivo debe fijar `permission_mode="bypassPermissions"` y permitir `ToolSearch` en `allowed_tools`, o la delegación se corta silenciosamente o falla en el primer paso.
+
+### L-017 — La herramienta de delegación a subagentes cambia de nombre según el build del CLI
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al observar en el stream cómo la sesión principal delega en el subagente `clocker` (T-020).
+- **Lección:** La herramienta que la sesión principal usa para delegar en un subagente definido con `AgentDefinition` aparece como `Agent` o como `Task` según el build del CLI instalado, no con un nombre único y estable.
+- **Aplicación:** Cualquier código que necesite reconocer o filtrar la herramienta de delegación en el stream (por ejemplo, para la observabilidad de L-015) debe aceptar ambos nombres, no asumir uno solo.

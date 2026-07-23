@@ -24,7 +24,7 @@
 | [T-018](#t-018--spike-bucle-repl-exterior--delegación-a-subagente-sobre-suscripción) | Spike: bucle REPL exterior + delegación a subagente sobre suscripción | Implementada |
 | [T-019](#t-019--reevaluar-el-orden-de-construcción-de-soda-a-la-luz-del-pivote-replsuscripción) | Reevaluar el orden de construcción de `soda` a la luz del pivote REPL+suscripción | Implementada |
 | [T-020](#t-020--spike-de-delegación-con-tool_use-estructurado-claude-agent-sdk-sobre-suscripción) | Spike de delegación con `tool_use` estructurado (Claude Agent SDK) sobre suscripción | Implementada |
-| [T-021](#t-021--sesión-persistente-detrás-de-provider) | Sesión persistente detrás de `Provider` | No implementada |
+| [T-021](#t-021--sesión-persistente-detrás-de-provider) | Sesión persistente detrás de `Provider` | Implementada |
 | [T-022](#t-022--bucle-repl-de-soda--canal-con-el-humano) | Bucle REPL de `soda` + canal con el humano | No implementada |
 | [T-023](#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) | Memoria como tool de lectura + `sesion-starter` portado a la sesión | No implementada |
 | [T-024](#t-024--memoria-como-tool-de-escritura--sesion-closer) | Memoria como tool de escritura + `sesion-closer` | No implementada |
@@ -183,10 +183,11 @@
 
 ### T-021 — Sesión persistente detrás de `Provider`
 
-- **Estado:** No implementada
+- **Estado:** Implementada
 - **Fecha:** 2026-07-23
-- **Descripción:** Paso 1 del nuevo orden de construcción (T-019, D-037). Resuelve la incógnita que T-020 dejó deliberadamente fuera: `ClaudeSDKClient` multi-turno sobre suscripción, encapsulado detrás de `Provider` para no filtrar el SDK más allá de esa frontera (protege D-006/D-008). La interfaz `send(prompt) -> str` de un solo disparo (D-008) evoluciona a un objeto sesión que mantiene contexto entre turnos. Recicla la política de borrado de `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` (D-031) y los ajustes de configuración de L-016 (`permission_mode="bypassPermissions"`, `ToolSearch` permitido en `allowed_tools`).
-- **Pendiente:** Todo el diseño e implementación. Verificación esperada: 2-3 turnos consecutivos manteniendo contexto sobre suscripción. Es el próximo paso a ejecutar.
+- **Descripción:** Paso 1 del nuevo orden de construcción (T-019, D-037). Resuelve la incógnita que T-020 dejó deliberadamente fuera: `ClaudeSDKClient` multi-turno sobre suscripción, encapsulado detrás de una nueva abstracción para no filtrar el SDK más allá de esa frontera (protege D-006/D-008). Recicla la política de borrado de `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` (D-031) y los ajustes de configuración de L-016 (`permission_mode="bypassPermissions"`, `ToolSearch` permitido en `allowed_tools`).
+- **Resultado:** Nueva abstracción async `Sesion` en `src/soda/core/sesion.py` (ABC: gestor de contexto async `__aenter__`/`__aexit__` + `async def enviar(prompt) -> str`), simétrica a `Provider` pero para el contrato multi-turno; reutiliza la jerarquía `ProviderError` (ver D-038). `Provider.send()` de un disparo queda intacto: los agentes de un solo turno (p. ej. `SesionStarter`) no se tocan. `SesionClaudeSDK` + `ClaudeSDKProvider` en `src/soda/providers/claude_sdk.py`: la sesión envuelve un `ClaudeSDKClient` vivo reusado entre turnos (eso da la persistencia), exportados en `providers/__init__.py`. `claude-agent-sdk` promovido de extra `[spike]` a dependencia dura en `pyproject.toml` (D-039): `soda` ya ES un orquestador sobre el SDK. `tests/test_sesion.py` (3, contrato de la ABC) y `tests/test_claude_sdk.py` (9, con un `ClaudeSDKClient` falso); suite total 157 verde (antes 145), `ruff` limpio. Script de verificación en vivo `scripts/probar_sesion_sdk.py` (spike, C-003, no producto): ejecutado por el usuario sobre suscripción, 3 turnos, el turno 2 recordó "Juan" y el turno 3 "verde" (datos solo del turno 1), con `ANTHROPIC_API_KEY presente: False`. Persistencia de contexto y suscripción verificadas en vivo. Hallazgo colateral registrado en L-018: el SDK mergea el entorno del subproceso (`{**os.environ, **options.env}`), no permite borrar una variable heredada, solo sobrescribirla a cadena vacía.
+- **Pendiente:** Ninguno propio de esta tarea. Próximo paso: T-022 (bucle REPL de `soda` + canal con el humano), que ya tiene la fundación lista.
 
 ### T-022 — Bucle REPL de `soda` + canal con el humano
 

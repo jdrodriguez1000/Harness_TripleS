@@ -9,15 +9,12 @@ description = "Software Development Agentic — arnés de IA que orquesta agente
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "jdrodriguez1000" }]
-dependencies = []
+# El Agent SDK es dependencia dura desde T-021: `soda` es un orquestador REPL
+# persistente sobre suscripción (D-035/D-036), construido sobre `ClaudeSDKClient`.
+dependencies = ["claude-agent-sdk"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
-# Solo para los spikes de exploración (scripts/), no para el producto. Valida
-# el Camino B de la delegación: tool_use estructurado del Claude Agent SDK
-# sobre suscripción (T-020, D-036). No se promueve a dependencia dura hasta
-# que el spike confirme que funciona.
-spike = ["claude-agent-sdk"]
 
 [project.scripts]
 soda = "soda.cli:main"

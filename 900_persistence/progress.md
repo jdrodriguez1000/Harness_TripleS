@@ -7,28 +7,40 @@
 
 ## Estado actual
 
-T-019 completada: quedó definido el nuevo orden de construcción de `soda` a la luz del
-pivote REPL+suscripción, en siete pasos (T-021 a T-027), aprobado por el usuario. La pieza
-central es D-037: la espina de control es HÍBRIDA — Python posee lo determinista y barato
-(detección de estado en disco, git/NC-007, gates humanos/C-007, qué fase toca según
-`methodology.md` §3), la sesión LLM persistente (D-035/D-036) posee solo el juicio y la
-delegación a subagentes. Esto resuelve la tensión que D-035 había dejado abierta al reabrir
-D-025/D-026: ambas siguen vigentes dentro de su dominio (el camino feliz mecánico del
-incremento no paga cuota por juicio LLM), pero ya no describen la totalidad del control.
-Se confirmó además que el arranque de un proyecto nuevo empieza siempre por el estadio de
-PROTOTIPADO (`methodology.md` §4), antes de la maquinaria del incremento de 11 pasos: sin
-`state.yaml` ni tests, con juicio humano + materialización de subagentes sobre la sesión
-viva. Sesión 100% de análisis y diseño, sin código nuevo. T-017 (`soda close`/
-`sesion-closer`) queda absorbida/reformulada por T-024; T-014 a T-016 siguen en suspenso,
-diferidas hasta después del prototipado, sin cancelarse.
+T-021 completada y verificada en vivo: paso 1 del nuevo orden de construcción (T-019,
+D-037). Nueva abstracción async `Sesion` en `src/soda/core/sesion.py` (simétrica a
+`Provider`, para el contrato multi-turno) y `SesionClaudeSDK`/`ClaudeSDKProvider` en
+`src/soda/providers/claude_sdk.py`, que envuelven un `ClaudeSDKClient` vivo reusado entre
+turnos. `claude-agent-sdk` pasó de extra `[spike]` a dependencia dura (D-039): `soda` ya ES
+un orquestador sobre el SDK, no un usuario opcional de él. Verificado en real por el usuario
+sobre su suscripción: 3 turnos consecutivos manteniendo contexto (recordó un nombre y un
+color dados solo en el primer turno), sin `ANTHROPIC_API_KEY`. Suite en 157 tests verdes
+(antes 145), `ruff` limpio. Queda resuelta la fundación que el bucle REPL (T-022) necesita.
 
 ## Qué sigue
 
-- [T-021](tasks.md#t-021--sesión-persistente-detrás-de-provider) — Sesión persistente detrás de `Provider`: resolver `ClaudeSDKClient` multi-turno sobre suscripción. Próximo paso a ejecutar.
-- [T-022](tasks.md#t-022--bucle-repl-de-soda--canal-con-el-humano) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: bucle REPL + canal humano, memoria como tool de lectura/escritura con `sesion-starter`/`sesion-closer` portados, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
+- [T-022](tasks.md#t-022--bucle-repl-de-soda--canal-con-el-humano) — Bucle REPL de `soda` + canal con el humano, sobre la `Sesion` ya resuelta en T-021. Próximo paso a ejecutar.
+- [T-023](tasks.md#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: memoria como tool de lectura/escritura con `sesion-starter`/`sesion-closer` portados, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
 - [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) a [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — Maquinaria del incremento (MVP en adelante), diferida hasta después del gate de madurez (T-027).
 
 ## Historial de hitos
+
+### 2026-07-23 — T-021 completada y verificada en vivo: sesión persistente `ClaudeSDKClient` detrás de una nueva abstracción `Sesion` (D-038, D-039)
+
+Paso 1 del nuevo orden de construcción (T-019, D-037), primer código nuevo desde el pivote.
+`src/soda/core/sesion.py`: ABC async `Sesion` (`__aenter__`/`__aexit__` + `async def
+enviar(prompt) -> str`), decidida como abstracción nueva y no como extensión de `Provider`
+para no romper el contrato de un disparo que siguen usando los agentes existentes (D-038).
+`src/soda/providers/claude_sdk.py`: `SesionClaudeSDK` + `ClaudeSDKProvider`, que abren y
+reusan un `ClaudeSDKClient` vivo entre turnos; reciclan la política de neutralizar
+`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` (D-031) y los ajustes de L-016
+(`permission_mode`, `ToolSearch`). `claude-agent-sdk` deja de ser el extra opcional
+`[spike]` de T-020 y pasa a dependencia dura del paquete (D-039). Tests nuevos
+(`test_sesion.py`, `test_claude_sdk.py`), suite en 157 verdes, `ruff` limpio. Verificación
+decisiva: `scripts/probar_sesion_sdk.py` ejecutado por el usuario sobre su suscripción real,
+3 turnos, contexto conservado entre turnos y `ANTHROPIC_API_KEY` ausente. Se registra L-018:
+el SDK mergea el entorno del subproceso y no permite borrar una variable heredada, solo
+sobrescribirla a cadena vacía (matiz que refina D-031, sin invalidarla).
 
 ### 2026-07-23 — T-019 completada: nuevo orden de construcción con espina de control híbrida (D-037)
 

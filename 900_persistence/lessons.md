@@ -21,6 +21,7 @@
 | [L-015](#l-015--observabilidad-de-la-delegación-anidada-vía-parent_tool_use_id) | Observabilidad de la delegación anidada vía `parent_tool_use_id` | 2026-07-23 |
 | [L-016](#l-016--el-agent-sdk-exige-permission_mode-y-toolsearch-explícitos-para-que-la-delegación-no-se-corte) | El Agent SDK exige `permission_mode` y `ToolSearch` explícitos para que la delegación no se corte | 2026-07-23 |
 | [L-017](#l-017--la-herramienta-de-delegación-a-subagentes-cambia-de-nombre-según-el-build-del-cli) | La herramienta de delegación a subagentes cambia de nombre según el build del CLI | 2026-07-23 |
+| [L-018](#l-018--el-agent-sdk-mergea-el-entorno-del-subproceso-no-permite-borrar-una-variable-heredada) | El Agent SDK mergea el entorno del subproceso: no permite borrar una variable heredada | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -143,3 +144,10 @@
 - **Contexto:** Al observar en el stream cómo la sesión principal delega en el subagente `clocker` (T-020).
 - **Lección:** La herramienta que la sesión principal usa para delegar en un subagente definido con `AgentDefinition` aparece como `Agent` o como `Task` según el build del CLI instalado, no con un nombre único y estable.
 - **Aplicación:** Cualquier código que necesite reconocer o filtrar la herramienta de delegación en el stream (por ejemplo, para la observabilidad de L-015) debe aceptar ambos nombres, no asumir uno solo.
+
+### L-018 — El Agent SDK mergea el entorno del subproceso: no permite borrar una variable heredada
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir `ClaudeSDKProvider` (T-021), había que forzar suscripción (D-031) neutralizando `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` como ya hacía `ClaudeCLIProvider` sobre `subprocess.run`, pero pasando por `ClaudeAgentOptions.env` en vez de construir el entorno del subproceso a mano.
+- **Lección:** El Claude Agent SDK arma el entorno del subproceso como `{**os.environ, **options.env}` (mergea sobre el entorno heredado); no existe forma de "eliminar" una variable ya presente pasando `options.env`, porque el merge nunca la quita, solo puede sobreescribir su valor. Verificado en la fuente del SDK (`_internal/transport/subprocess_cli.py`) y confirmado en vivo.
+- **Aplicación:** Para neutralizar una variable de entorno heredada al usar el Agent SDK, hay que sobrescribirla a cadena vacía (`""`) en `options.env`, no intentar borrarla del diccionario; el CLI subyacente trata la cadena vacía como ausencia de credencial. Cualquier código futuro que arme `ClaudeAgentOptions.env` para excluir una variable del entorno debe seguir este mismo patrón.

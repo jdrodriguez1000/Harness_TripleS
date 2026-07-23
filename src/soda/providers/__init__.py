@@ -6,5 +6,6 @@ aquí; ni los agentes ni las tools cambian.
 """
 
 from soda.providers.claude_cli import ClaudeCLIProvider
+from soda.providers.claude_sdk import ClaudeSDKProvider, SesionClaudeSDK
 
-__all__ = ["ClaudeCLIProvider"]
+__all__ = ["ClaudeCLIProvider", "ClaudeSDKProvider", "SesionClaudeSDK"]

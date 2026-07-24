@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from soda.agents.memoria import leer_memoria
+from soda.agents.memory import leer_memoria
 from soda.agents.prompts import PROMPT_FILENAMES, read_prompt
 from soda.agents.sesion_starter import (
     MemoriaVaciaError,

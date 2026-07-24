@@ -31,6 +31,8 @@
 | [T-025](#t-025--descubridor-como-subagente-agentdefinition) | `Descubridor` como subagente `AgentDefinition` | No implementada |
 | [T-026](#t-026--prototipador-como-subagente--bucle-p3p4) | `Prototipador` como subagente + bucle P3↔P4 | No implementada |
 | [T-027](#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) | Gate de madurez / feature freeze: cierre del estadio de prototipo | No implementada |
+| [T-028](#t-028--renombrar-a-inglés-los-archivos-con-nombre-español-restantes) | Renombrar a inglés los archivos con nombre español restantes | No implementada |
+| [T-029](#t-029--migrar-a-inglés-los-identificadores-del-paquete) | Migrar a inglés los identificadores del paquete | No implementada |
 
 > Estados posibles: `Implementada` / `No implementada` / `Cancelada-Suspendida`
 
@@ -203,7 +205,8 @@
 - **Estado:** No implementada
 - **Fecha:** 2026-07-23
 - **Descripción:** Paso 3 del nuevo orden de construcción. Expone la lectura de `_persistence/` como tool del Agent SDK (recicla `src/soda/agents/memoria.py`, T-012) y porta `sesion-starter` del modelo de un disparo sobre `claude -p` al modelo de sesión persistente (T-021/T-022). Es read-only y de menor riesgo; ya tiene banco de pruebas real (`900_persistence/` de este mismo repo).
-- **Pendiente:** Todo el diseño e implementación. Depende de T-022.
+- **Resultado parcial (2026-07-23):** Completada la primera mitad (la tool de lectura y su cableado), verificada solo con tests, sin gasto de cuota. Renombrado `src/soda/agents/memoria.py` → `src/soda/agents/memory.py` (y su test) con `git mv`, primer paso de la convención de nombres en inglés (D-041); los identificadores internos siguen en español a propósito, se migran en T-029. Nuevo `src/soda/agents/memory_tool.py`: expone `leer_memoria` como tool in-process del Agent SDK vía `@tool`/`create_sdk_mcp_server` (API confirmada con `ctx7`); `make_memory_tool(project_root)` captura `project_root` en un cierre (no argumento del modelo, respeta C-002), `format_memory(memory)`, `create_memory_server(project_root)`, constantes `SERVER_NAME`/`TOOL_NAME`/`ALLOWED_TOOL`; read-only. `ClaudeSDKProvider` (`src/soda/providers/claude_sdk.py`) acepta ahora `mcp_servers`, pasado a `ClaudeAgentOptions`. `src/soda/core/flota.py`: `proveedor_de_sesion_para(ORQUESTADOR, project_root)` monta `create_memory_server(project_root)`, añade `ALLOWED_TOOL` a las tools (junto a `ToolSearch`, L-016), y `PROMPT_ORQUESTADOR` instruye a leer memoria solo con `mcp__memory__read`, sin rastrear el disco por su cuenta (cierra el hueco de la nota de T-022). Los agentes no-orquestador siguen sin servidores MCP. Suite de 178 a 190 tests verdes, `ruff` limpio.
+- **Pendiente:** (1) Verificación en vivo sobre la suscripción real (C-003): script de spike que confirme que el orquestador invoca `mcp__memory__read` en vez de rastrear el disco. (2) Segunda mitad de la tarea: portar `sesion-starter` del modelo de un disparo (`Provider.send` sobre `claude -p`) al modelo de sesión persistente (T-021/T-022), para que la reconstrucción de contexto ocurra dentro de la sesión del orquestador. Depende de T-022 (ya resuelta).
 
 ### T-024 — Memoria como tool de escritura + `sesion-closer`
 
@@ -232,3 +235,17 @@
 - **Fecha:** 2026-07-23
 - **Descripción:** Paso 7 del nuevo orden de construcción. Cierra el estadio de prototipado (`methodology.md` §4.4) y marca la transición a la maquinaria del incremento de 11 pasos (MVP en adelante), donde entran en juego `state.yaml` (T-014), `soda status` (T-015) y `soda step` (T-016).
 - **Pendiente:** Todo el diseño e implementación. Depende de T-026. Último paso del nuevo orden de construcción definido en esta sesión.
+
+### T-028 — Renombrar a inglés los archivos con nombre español restantes
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Derivada de la convención D-041 (código nuevo en inglés). Quedan con nombre español: `src/soda/core/sesion.py`, `src/soda/core/flota.py`, `src/soda/agents/sesion_starter.py`, más sus tests e imports asociados. `src/soda/agents/memoria.py` ya se renombró a `memory.py` en T-023.
+- **Pendiente:** Todo el diseño e implementación. Renombrar con `git mv` para preservar historia, sin tocar los identificadores internos (eso es T-029).
+
+### T-029 — Migrar a inglés los identificadores del paquete
+
+- **Estado:** No implementada
+- **Fecha:** 2026-07-23
+- **Descripción:** Derivada de la convención D-041 (código nuevo en inglés). El código español existente (nombres de funciones, clases, constantes: `leer_memoria`, `MemoriaProyecto`, `enviar`, `proveedor_de_sesion_para`, etc.) no se migró de golpe cuando se fijó la convención; queda como refactor mayor dedicado, sin tocar docstrings/comentarios (documentación sigue en español).
+- **Pendiente:** Todo el diseño e implementación. Tarea grande; conviene planear su alcance antes de empezar (probablemente por módulo).

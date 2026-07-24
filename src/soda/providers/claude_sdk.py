@@ -33,13 +33,14 @@ El modelo es argumento del constructor del provider, no de cada turno: es
 configuración de quien arma la flota, no del mensaje.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    McpServerConfig,
     TextBlock,
 )
 
@@ -103,6 +104,7 @@ class ClaudeSDKProvider:
         system_prompt: str | None = None,
         cwd: Path | None = None,
         tools: Sequence[str] = HERRAMIENTAS_POR_DEFECTO,
+        mcp_servers: Mapping[str, McpServerConfig] | None = None,
         solo_suscripcion: bool = True,
     ) -> None:
         """
@@ -113,7 +115,13 @@ class ClaudeSDKProvider:
             cwd: Directorio de trabajo del subproceso; normalmente la raíz del
                 proyecto destino.
             tools: Herramientas habilitadas. El valor por defecto incluye
-                `ToolSearch`, obligatorio (L-016).
+                `ToolSearch`, obligatorio (L-016). Para exponer una herramienta de
+                un servidor MCP hay que añadir aquí su nombre completo
+                (`mcp__<servidor>__<herramienta>`) además de registrar el servidor
+                en `mcp_servers`.
+            mcp_servers: Servidores MCP in-process a registrar, por nombre. Los usa
+                el orquestador para exponer la memoria como herramienta (T-023); el
+                resto de agentes no pasa ninguno.
             solo_suscripcion: Si es verdadero, neutraliza las credenciales de API en
                 el entorno del subproceso para forzar el uso de la suscripción.
         """
@@ -121,6 +129,7 @@ class ClaudeSDKProvider:
         self.system_prompt = system_prompt
         self.cwd = cwd
         self.tools = tuple(tools)
+        self.mcp_servers = dict(mcp_servers) if mcp_servers is not None else {}
         self.solo_suscripcion = solo_suscripcion
 
     def _entorno(self) -> dict[str, str]:
@@ -139,6 +148,7 @@ class ClaudeSDKProvider:
             system_prompt=self.system_prompt,
             cwd=str(self.cwd) if self.cwd is not None else None,
             allowed_tools=list(self.tools),
+            mcp_servers=dict(self.mcp_servers),
             permission_mode="bypassPermissions",
             env=self._entorno(),
         )

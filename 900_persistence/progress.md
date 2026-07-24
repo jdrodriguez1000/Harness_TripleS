@@ -7,26 +7,47 @@
 
 ## Estado actual
 
-T-022 completada y verificada en vivo DOS veces sobre suscripción real: paso 2 del nuevo
-orden de construcción (T-019, D-037). `soda start` ya no imprime el informe de
-`sesion-starter` y muere: ese informe pasa a ser el saludo de un bucle REPL nuevo
-(`src/soda/repl.py`, `correr_repl`) que abre una `Sesion` de `ClaudeSDKProvider` con el nuevo
-agente `ORQUESTADOR` (modelo `opus`, D-033 sin cambiar de criterio) y mantiene el contexto
-vivo entre turnos hasta `/salir`/EOF/Ctrl-C. Cierra la parte de C-007 que seguía abierta
-(canal con el humano). Verificado por el usuario en el producto real (`soda init` + `soda
-start` en proyecto nuevo): el orquestador recordó un dato ("Tampa") entre turnos tras el
-informe de reanudación. Suite en 178 tests verdes (antes 157), `ruff` limpio. Hallazgo de
-alcance para T-023: el orquestador con tools reales encontró por su cuenta `900_persistence/`
-del repo anfitrión durante el spike y comentó el estado del proyecto sin que se lo pidieran —
-confirma que el system prompt/tools de orquestación real son justo el trabajo de T-023/T-024.
+T-023 (memoria como tool de lectura + `sesion-starter` portado a la sesión) EN CURSO, primera
+mitad completada: `src/soda/agents/memory_tool.py` nuevo expone `leer_memoria` como tool
+in-process del Agent SDK (`@tool` + `create_sdk_mcp_server`), `ClaudeSDKProvider` acepta
+`mcp_servers`, y `proveedor_de_sesion_para(ORQUESTADOR, ...)` monta esa tool y amplía
+`PROMPT_ORQUESTADOR` para que el orquestador lea memoria solo con `mcp__memory__read` en vez
+de rastrear el disco por su cuenta (cierra el hallazgo de alcance dejado por T-022). Además se
+fijó una convención nueva (D-041): el código nuevo se escribe en inglés (archivos e
+identificadores); el español existente se migra en tareas dedicadas (T-028, T-029), no de
+golpe. Primer paso de esa convención aplicado: `src/soda/agents/memoria.py` → `memory.py`.
+Suite en 190 tests verdes (antes 178), `ruff` limpio; todo verificado solo con tests, sin
+gasto de cuota. Quedan pendientes de T-023: la verificación en vivo sobre suscripción real, y
+la segunda mitad (portar `sesion-starter` al modelo de sesión persistente).
 
 ## Qué sigue
 
-- [T-023](tasks.md#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) — Memoria como tool de lectura + `sesion-starter` portado a la sesión, sobre el REPL ya resuelto en T-022. Próximo paso a ejecutar.
+- [T-023](tasks.md#t-023--memoria-como-tool-de-lectura--sesion-starter-portado-a-la-sesión) — Terminar T-023: verificación en vivo de la tool de memoria (spike sobre suscripción) y portar `sesion-starter` al modelo de sesión persistente.
+- [T-028](tasks.md#t-028--renombrar-a-inglés-los-archivos-con-nombre-español-restantes) y [T-029](tasks.md#t-029--migrar-a-inglés-los-identificadores-del-paquete) — Limpieza derivada de D-041: renombrar archivos español restantes e identificadores del paquete a inglés. Sin fecha fija, se ejecutan como tareas de limpieza dedicadas.
 - [T-024](tasks.md#t-024--memoria-como-tool-de-escritura--sesion-closer) a [T-027](tasks.md#t-027--gate-de-madurez--feature-freeze-cierre-del-estadio-de-prototipo) — Resto del nuevo orden de construcción: memoria como tool de escritura con `sesion-closer` portado, `Descubridor` y `Prototipador` como subagentes, y el gate de madurez que cierra el prototipado.
 - [T-014](tasks.md#t-014--stateyaml-formato-mínimo-del-estado-del-incremento) a [T-016](tasks.md#t-016--soda-step-invocar-al-agente-especializado-que-corresponda) — Maquinaria del incremento (MVP en adelante), diferida hasta después del gate de madurez (T-027).
 
 ## Historial de hitos
+
+### 2026-07-23 — T-023 en curso: tool de lectura de memoria del Agent SDK cableada al orquestador; convención de código en inglés (D-041)
+
+Primera mitad de T-023 (paso 3 del nuevo orden de construcción), sin verificación en vivo
+todavía. `src/soda/agents/memoria.py` renombrado a `src/soda/agents/memory.py` (`git mv`),
+primer paso de la convención nueva D-041 (código nuevo en inglés; el español existente se
+migra en T-028/T-029, tareas de limpieza registradas en esta sesión). Nuevo
+`src/soda/agents/memory_tool.py`: `make_memory_tool(project_root)` (captura `project_root` en
+un cierre, no argumento del modelo, respeta C-002), `format_memory`, `create_memory_server`,
+constantes `SERVER_NAME`/`TOOL_NAME`/`ALLOWED_TOOL`; expone `leer_memoria` como tool
+in-process read-only vía `@tool`/`create_sdk_mcp_server` (API confirmada con `ctx7`, ver
+L-020). `ClaudeSDKProvider` (`src/soda/providers/claude_sdk.py`) acepta `mcp_servers`.
+`src/soda/core/flota.py`: `proveedor_de_sesion_para(ORQUESTADOR, project_root)` monta el
+servidor de memoria, añade `ALLOWED_TOOL` a las tools permitidas junto a `ToolSearch` (L-016),
+y `PROMPT_ORQUESTADOR` instruye a leer memoria solo con `mcp__memory__read`, sin rastrear el
+disco por su cuenta. Suite de 178 a 190 tests verdes, `ruff` limpio; todo verificado solo con
+tests. Pendiente para la próxima sesión: verificación en vivo sobre suscripción real y
+segunda mitad de T-023 (portar `sesion-starter` a sesión persistente).
+
+### 2026-07-23 — T-022 completada y verificada en vivo: bucle REPL de `soda` + canal con el humano
 
 ### 2026-07-23 — T-022 completada y verificada en vivo: bucle REPL de `soda` + canal con el humano
 

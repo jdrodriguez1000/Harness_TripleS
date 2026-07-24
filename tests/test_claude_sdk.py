@@ -141,3 +141,23 @@ def test_el_modelo_y_el_cwd_viajan_en_las_opciones(tmp_path):
     opciones = _opciones_de(ClaudeSDKProvider(model="haiku", cwd=tmp_path))
     assert opciones.model == "haiku"
     assert opciones.cwd == str(tmp_path)
+
+
+# --- Servidores MCP (T-023) ------------------------------------------------
+
+
+def test_sin_mcp_servers_el_dict_va_vacio():
+    opciones = _opciones_de(ClaudeSDKProvider())
+    assert opciones.mcp_servers == {}
+
+
+def test_los_mcp_servers_y_su_herramienta_viajan_en_las_opciones():
+    servidor = {"type": "sdk", "name": "memory", "instance": object()}
+    opciones = _opciones_de(
+        ClaudeSDKProvider(
+            tools=("ToolSearch", "mcp__memory__read"),
+            mcp_servers={"memory": servidor},
+        )
+    )
+    assert opciones.mcp_servers == {"memory": servidor}
+    assert "mcp__memory__read" in opciones.allowed_tools

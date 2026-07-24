@@ -28,7 +28,7 @@ from pathlib import Path
 
 import anyio
 
-from soda.agents.memoria import MemoriaAusenteError, leer_memoria
+from soda.agents.memory import MemoriaAusenteError, leer_memoria
 from soda.agents.sesion_starter import SesionStarter
 from soda.core import git
 from soda.core.flota import ORQUESTADOR, proveedor_de_sesion_para, proveedor_para

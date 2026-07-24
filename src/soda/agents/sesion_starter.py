@@ -3,7 +3,7 @@
 Primer agente del harness (D-028). Es el de menor riesgo de todos: solo lee, y
 su peor caso es un informe equivocado en pantalla.
 
-Cómo funciona: `soda.agents.memoria` lee `_persistence/` en Python puro, esta
+Cómo funciona: `soda.agents.memory` lee `_persistence/` en Python puro, esta
 clase compone el prompt con lo leído y se lo pasa a un `Provider`. El agente no
 recibe herramientas, no navega el disco y no sabe qué modelo hay detrás — quien
 construye la flota decide eso al inyectarle el `Provider`. De ahí que cambiar de
@@ -19,7 +19,7 @@ hay ninguna.
 
 from pathlib import Path
 
-from soda.agents.memoria import MemoriaProyecto, leer_memoria
+from soda.agents.memory import MemoriaProyecto, leer_memoria
 from soda.agents.prompts import read_prompt
 from soda.core.provider import Provider
 

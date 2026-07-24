@@ -44,6 +44,7 @@
 | [D-038](#d-038--la-sesión-persistente-se-encapsula-tras-una-nueva-abstracción-sesion-no-extendiendo-provider) | La sesión persistente se encapsula tras una nueva abstracción `Sesion`, no extendiendo `Provider` | 2026-07-23 |
 | [D-039](#d-039--claude-agent-sdk-pasa-de-extra-spike-a-dependencia-dura-del-producto) | `claude-agent-sdk` pasa de extra `[spike]` a dependencia dura del producto | 2026-07-23 |
 | [D-040](#d-040--el-orquestador-usa-opus-por-el-mismo-criterio-de-d-033-el-trabajo-no-la-importancia) | El orquestador usa `opus`, por el mismo criterio de D-033: el trabajo, no la importancia | 2026-07-23 |
+| [D-041](#d-041--el-código-nuevo-se-escribe-en-inglés-nombres-de-archivo-e-identificadores) | El código nuevo se escribe en inglés (nombres de archivo e identificadores) | 2026-07-23 |
 
 ## Detalle de decisiones
 
@@ -368,3 +369,11 @@
 - **Decisión:** `MODELOS[ORQUESTADOR] = "opus"`. Se mantiene el criterio ya fijado en D-033 (el trabajo que hace el agente, no su importancia): `sesion-starter` resume archivos que ya tiene delante y le basta `haiku`; el orquestador, en cambio, conduce la conversación, sostiene contexto multi-turno y, desde T-023/T-025, decidirá y delegará en subagentes — eso es juicio real, no redacción, y pide el modelo grande.
 - **Alternativas descartadas:** Usar `sonnet` para el orquestador (el modelo intermedio ya usado en los spikes de T-018/T-020 para el rol de "quien decide"), descartado por ahora sin evidencia en contra concreta; queda como candidato a reevaluar si el costo de cuota de `opus` en el REPL persistente resulta desproporcionado en la práctica (C-006).
 - **Consecuencias:** Cambiar el modelo del orquestador sigue siendo editar una línea de `MODELOS` (D-033). No se ha medido consumo de cuota real de una sesión de `opus` persistente; si duele, es una línea de código la que cambia, no el diseño.
+
+### D-041 — El código nuevo se escribe en inglés (nombres de archivo e identificadores)
+
+- **Fecha:** 2026-07-23
+- **Contexto:** El código de `src/soda/` mezclaba nombres de archivo e identificadores en español (`memoria.py`, `sesion.py`, `flota.py`, `leer_memoria`, `MemoriaProyecto`, `enviar`, `proveedor_de_sesion_para`, etc.) con el resto del ecosistema Python, que es abrumadoramente en inglés. El usuario fijó la convención explícitamente al construir T-023.
+- **Decisión:** El código nuevo (archivos e identificadores: funciones, clases, constantes) se escribe en inglés. El código español existente NO se migra de golpe; se migra en tareas de limpieza dedicadas (T-028 para nombres de archivo, T-029 para identificadores). Los docstrings y comentarios siguen en español, sin cambio: la documentación del proyecto es en español por convención ya vigente (ver cabecera de `CLAUDE.md`).
+- **Alternativas descartadas:** Migrar todo el código español existente de una sola vez junto con esta decisión, descartado por ser un refactor mayor que habría desviado el foco de T-023 en curso; mezclar inglés y español indefinidamente sin fijar una convención, descartado porque perpetuaría la inconsistencia que motivó la decisión.
+- **Consecuencias:** Todo módulo nuevo (`src/soda/agents/memory_tool.py` en esta misma sesión) se escribe con nombre e identificadores en inglés desde el origen. Quedan registradas T-028 (renombrar archivos español restantes) y T-029 (migrar identificadores) como deuda explícita, no implícita. Hasta que se ejecuten, el paquete convive con dos idiomas en el código a propósito.

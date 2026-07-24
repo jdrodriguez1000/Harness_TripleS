@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from soda.agents.memoria import (
+from soda.agents.memory import (
     BAJO_DEMANDA,
     OBLIGATORIOS,
     MemoriaAusenteError,

@@ -21,8 +21,12 @@ seis archivos es gastarla mal.
 
 from pathlib import Path
 
+from soda.agents.memory_tool import ALLOWED_TOOL as MEMORY_TOOL
+from soda.agents.memory_tool import SERVER_NAME as MEMORY_SERVER
+from soda.agents.memory_tool import create_memory_server
 from soda.core.provider import Provider
 from soda.providers import ClaudeCLIProvider, ClaudeSDKProvider
+from soda.providers.claude_sdk import HERRAMIENTAS_POR_DEFECTO
 
 __all__ = [
     "MODELOS",
@@ -48,15 +52,20 @@ MODELOS: dict[str, str] = {
     ORQUESTADOR: "opus",
 }
 
-#: System prompt mínimo del orquestador. Hoy solo fija idioma y tono: en T-022 el
-#: orquestador es un interlocutor coherente sin herramientas. La memoria como tool
-#: (T-023/T-024) y la delegación en subagentes (T-025/T-026) ampliarán este prompt;
-#: por eso vive aquí, junto al modelo, y no incrustado en el bucle REPL.
+#: System prompt del orquestador. Fija idioma y tono, y —desde T-023— le dice que
+#: la memoria del proyecto se consulta por su herramienta, no rastreando el disco.
+#: La delegación en subagentes (T-025/T-026) lo ampliará más; por eso vive aquí,
+#: junto al modelo, y no incrustado en el bucle REPL.
 PROMPT_ORQUESTADOR = (
     "Eres el orquestador de `soda`, un arnés de IA que acompaña la construcción de "
     "software paso a paso. Conversas en español con la persona que dirige el "
     "proyecto. Responde con claridad y sin rodeos, y pregunta cuando te falte "
-    "información en vez de suponer."
+    "información en vez de suponer.\n\n"
+    "La memoria del proyecto vive en `_persistence/`. Cuando necesites saber en qué "
+    f"punto está el proyecto, usa la herramienta `{MEMORY_TOOL}` para leerla: te "
+    "devuelve `progress.md` y `tasks.md` íntegros y el resto con su índice. No "
+    "explores el disco por tu cuenta ni abras esos archivos con otras herramientas; "
+    "esa herramienta es la vía autorizada para leer la memoria."
 )
 
 
@@ -95,7 +104,8 @@ def proveedor_de_sesion_para(agente: str, project_root: Path) -> ClaudeSDKProvid
 
     Returns:
         Un `ClaudeSDKProvider` sobre la suscripción, con el modelo del agente y,
-        para el orquestador, su system prompt.
+        para el orquestador, su system prompt y la memoria expuesta como
+        herramienta (T-023). El resto de agentes va sin servidores MCP.
 
     Raises:
         KeyError: Si `agente` no tiene modelo asignado.
@@ -105,9 +115,13 @@ def proveedor_de_sesion_para(agente: str, project_root: Path) -> ClaudeSDKProvid
             f"'{agente}' no tiene modelo asignado. Conocidos: {', '.join(MODELOS)}"
         )
 
-    system_prompt = PROMPT_ORQUESTADOR if agente == ORQUESTADOR else None
-    return ClaudeSDKProvider(
-        model=MODELOS[agente],
-        system_prompt=system_prompt,
-        cwd=project_root,
-    )
+    if agente == ORQUESTADOR:
+        return ClaudeSDKProvider(
+            model=MODELOS[agente],
+            system_prompt=PROMPT_ORQUESTADOR,
+            cwd=project_root,
+            tools=(*HERRAMIENTAS_POR_DEFECTO, MEMORY_TOOL),
+            mcp_servers={MEMORY_SERVER: create_memory_server(project_root)},
+        )
+
+    return ClaudeSDKProvider(model=MODELOS[agente], cwd=project_root)

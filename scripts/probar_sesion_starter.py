@@ -41,7 +41,7 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "src"))
 
-from soda.agents.memoria import leer_memoria  # noqa: E402
+from soda.agents.memory import leer_memoria  # noqa: E402
 from soda.agents.sesion_starter import SesionStarter, componer_prompt  # noqa: E402
 from soda.core.provider import ProviderError  # noqa: E402
 from soda.providers import ClaudeCLIProvider  # noqa: E402

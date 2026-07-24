@@ -23,6 +23,7 @@
 | [L-017](#l-017--la-herramienta-de-delegación-a-subagentes-cambia-de-nombre-según-el-build-del-cli) | La herramienta de delegación a subagentes cambia de nombre según el build del CLI | 2026-07-23 |
 | [L-018](#l-018--el-agent-sdk-mergea-el-entorno-del-subproceso-no-permite-borrar-una-variable-heredada) | El Agent SDK mergea el entorno del subproceso: no permite borrar una variable heredada | 2026-07-23 |
 | [L-019](#l-019--declarar-como-dependencia-directa-lo-que-se-importa-directo-aunque-hoy-llegue-transitivamente) | Declarar como dependencia directa lo que se importa directo, aunque hoy llegue transitivamente | 2026-07-23 |
+| [L-020](#l-020--api-de-tools-in-process-del-agent-sdk-tool-create_sdk_mcp_server-y-esquema-vacío) | API de tools in-process del Agent SDK: `@tool`, `create_sdk_mcp_server` y esquema vacío | 2026-07-23 |
 
 ## Detalle de lecciones
 
@@ -159,3 +160,10 @@
 - **Contexto:** Al construir T-022 (bucle REPL), `src/soda/cli.py` empezó a importar `anyio` directamente para la frontera sync→async (`anyio.run`), pero `anyio` no estaba en `dependencies` de `pyproject.toml`: solo llegaba de rebote porque `claude-agent-sdk` lo arrastra como dependencia suya. Los tests en el `.venv` del repo pasaron sin problema (ahí `anyio` ya estaba instalado transitivamente), pero el `soda` global instalado con pipx en un entorno distinto falló con `ModuleNotFoundError: No module named 'anyio'` al correr `soda init`, hasta reinstalar con `pip install -e ".[dev]"`.
 - **Lección:** Que un módulo esté disponible en el entorno de desarrollo no prueba que esté declarado como dependencia; si llega solo transitivamente vía otra librería, cualquier cambio futuro en esa librería (o cualquier entorno de instalación distinto al que se probó primero) puede romper el import sin ningún aviso previo.
 - **Aplicación:** Todo módulo que el código de producto (`src/soda/`) importe directamente debe declararse en `dependencies` de `pyproject.toml`, sin importar si hoy llega gratis por una dependencia transitiva. Detectarlo requiere probar la instalación en un entorno distinto del que se usó para desarrollar (aquí, el `soda` global de pipx, no el `.venv` del repo), en la línea de L-004.
+
+### L-020 — API de tools in-process del Agent SDK: `@tool`, `create_sdk_mcp_server` y esquema vacío
+
+- **Fecha:** 2026-07-23
+- **Contexto:** Al construir `src/soda/agents/memory_tool.py` (T-023), había que exponer `leer_memoria` como herramienta del Agent SDK sin dejar que el modelo elija la ruta del proyecto (C-002). API confirmada contra la documentación vigente vía `ctx7`.
+- **Lección:** `@tool(name, description, input_schema)` devuelve un `SdkMcpTool` (dataclass con campos `name`/`description`/`input_schema`/`handler`/`annotations`; el `handler` es async e invocable directamente en tests). `create_sdk_mcp_server(name, tools=[...])` devuelve un servidor tipo dict (`{'type': 'sdk', 'name': ..., 'instance': Server}`), no una instancia de clase. Se registra pasando ese dict en `ClaudeAgentOptions(mcp_servers={nombre: server}, allowed_tools=["mcp__<servidor>__<tool>"])`; sin añadir el nombre completo a `allowed_tools`, la tool queda registrada pero inalcanzable. Un esquema de entrada vacío (`{}`) es válido para una tool sin parámetros.
+- **Aplicación:** Para no dejar que el modelo elija una ruta u otro dato sensible (C-002), capturar el valor fijo (aquí, `project_root`) en un cierre de Python al construir la tool y dejar el esquema de entrada vacío, en vez de pedírselo como argumento al modelo. Cualquier tool in-process futura del harness debe seguir este mismo patrón de registro (servidor + `allowed_tools` con el nombre completo `mcp__<servidor>__<tool>`).

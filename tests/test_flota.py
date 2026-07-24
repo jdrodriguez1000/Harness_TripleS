@@ -7,6 +7,7 @@ modelo, proveedor y opciones, no ninguna llamada real.
 
 import pytest
 
+from soda.agents.memory_tool import ALLOWED_TOOL, SERVER_NAME
 from soda.core.flota import (
     MODELOS,
     ORQUESTADOR,
@@ -61,3 +62,23 @@ def test_un_agente_no_orquestador_no_recibe_system_prompt(tmp_path):
 def test_proveedor_de_sesion_falla_con_agente_desconocido(tmp_path):
     with pytest.raises(KeyError):
         proveedor_de_sesion_para("no-existe", tmp_path)
+
+
+# --- Memoria como herramienta del orquestador (T-023) ----------------------
+
+
+def test_el_orquestador_recibe_la_memoria_como_servidor_y_herramienta(tmp_path):
+    proveedor = proveedor_de_sesion_para(ORQUESTADOR, tmp_path)
+    assert SERVER_NAME in proveedor.mcp_servers
+    assert ALLOWED_TOOL in proveedor.tools
+    assert "ToolSearch" in proveedor.tools  # L-016 sigue en pie
+
+
+def test_el_prompt_del_orquestador_nombra_la_herramienta_de_memoria():
+    assert ALLOWED_TOOL in PROMPT_ORQUESTADOR
+
+
+def test_un_agente_no_orquestador_no_recibe_servidores_mcp(tmp_path):
+    proveedor = proveedor_de_sesion_para("sesion-starter", tmp_path)
+    assert proveedor.mcp_servers == {}
+    assert ALLOWED_TOOL not in proveedor.tools
